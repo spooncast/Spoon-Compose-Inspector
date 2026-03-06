@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ComposeInspector 데모</string>
+
+    <!-- Tabs -->
+    <string name="tab_with_tokens">토큰 있음</string>
+    <string name="tab_without_tokens">토큰 없음</string>
+    <string name="tab_component_test">컴포넌트</string>
+
+    <!-- Token Demo Screen -->
+    <string name="token_demo_title">ComposeInspector 데모</string>
+    <string name="token_demo_description">FAB을 탭하여 Inspector를 활성화한 후 요소를 탭하세요.</string>
+    <string name="section_colors">색상</string>
+    <string name="section_surface_border">서피스 &amp; 보더</string>
+    <string name="section_spacing">간격</string>
+    <string name="section_typography">타이포그래피 샘플</string>
+    <string name="card_title">카드 제목</string>
+    <string name="card_body">서피스 카드 안의 본문 텍스트입니다. 보더와 코너 반경이 적용되어 있습니다.</string>
+    <string name="label_text">레이블 텍스트</string>
+    <string name="padding_container">paddingL (24dp) 컨테이너</string>
+    <string name="corner_radius">cornerRadiusL (16dp)</string>
+
+    <!-- Basic Demo Screen -->
+    <string name="basic_demo_title">토큰 없는 데모</string>
+    <string name="basic_demo_description">토큰이 등록되지 않았습니다. Inspector에 hex/dp 값만 표시됩니다.</string>
+    <string name="section_card">카드</string>
+    <string name="basic_card_body">하드코딩된 색상과 크기의 본문 텍스트입니다. Inspector에 토큰명이 표시되지 않습니다.</string>
+    <string name="basic_padding_container">24dp 패딩 컨테이너</string>
+    <string name="basic_corner_radius">16dp 코너 반경</string>
+    <string name="section_typography_basic">타이포그래피</string>
+
+    <!-- Component Test Screen -->
+    <string name="inspector_demo_title">컴포넌트</string>
+    <string name="launch_section_description">직접 사용하거나 Preview에서 사용해보세요. 각 컴포넌트 하단의 버튼을 탭하면 Inspector에서 열립니다.</string>
+    <string name="open_component_1">Component 1 열기</string>
+    <string name="open_component_2">Component 2 열기</string>
+    <string name="code_example_label">코드 예시</string>
+    <string name="section_component_1">Component 1</string>
+    <string name="section_component_2">Component 2</string>
+    <string name="payment_title">결제 수단 선택</string>
+    <string name="payment_credit_card">신용카드</string>
+    <string name="payment_credit_card_detail">VISA •••• 1234</string>
+    <string name="payment_bank_transfer">계좌이체</string>
+    <string name="payment_bank_detail">국민은행 •••• 5678</string>
+    <string name="payment_button">결제하기</string>
+    <string name="dialog_title">정말 나가시겠습니까?</string>
+    <string name="dialog_body">진행 중인 작업이 저장되지 않을 수 있습니다.</string>
+    <string name="dialog_cancel">취소</string>
+    <string name="dialog_confirm">나가기</string>
+
+    <!-- Color names -->
+    <string name="color_primary">Primary</string>
+    <string name="color_secondary">Secondary</string>
+    <string name="color_error">Error</string>
+    <string name="color_warning">Warning</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_green">Green</string>
+    <string name="color_red">Red</string>
+    <string name="color_amber">Amber</string>
+</resources>

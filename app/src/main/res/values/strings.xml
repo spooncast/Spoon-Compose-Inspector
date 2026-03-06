@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ComposeInspector Demo</string>
+
+    <!-- Tabs -->
+    <string name="tab_with_tokens">With Tokens</string>
+    <string name="tab_without_tokens">Without Tokens</string>
+    <string name="tab_component_test">Components</string>
+
+    <!-- Token Demo Screen -->
+    <string name="token_demo_title">ComposeInspector Demo</string>
+    <string name="token_demo_description">Tap the FAB to enable inspector, then tap any element.</string>
+    <string name="section_colors">Colors</string>
+    <string name="section_surface_border">Surface &amp; Border</string>
+    <string name="section_spacing">Spacing</string>
+    <string name="section_typography">Typography Samples</string>
+    <string name="card_title">Card Title</string>
+    <string name="card_body">This is body text inside a surface card with border and corner radius.</string>
+    <string name="label_text">Label text</string>
+    <string name="padding_container">paddingL (24dp) container</string>
+    <string name="corner_radius">cornerRadiusL (16dp)</string>
+
+    <!-- Basic Demo Screen -->
+    <string name="basic_demo_title">No Token Demo</string>
+    <string name="basic_demo_description">No tokens registered. Inspector shows only hex/dp values.</string>
+    <string name="section_card">Card</string>
+    <string name="basic_card_body">Body text with hardcoded colors and sizes. No token names will appear in Inspector.</string>
+    <string name="basic_padding_container">24dp padding container</string>
+    <string name="basic_corner_radius">16dp corner radius</string>
+    <string name="section_typography_basic">Typography</string>
+
+    <!-- Component Test Screen -->
+    <string name="inspector_demo_title">Components</string>
+    <string name="launch_section_description">Use directly or try in Preview. Tap the button below each component to open it in Inspector.</string>
+    <string name="open_component_1">Open Component 1</string>
+    <string name="open_component_2">Open Component 2</string>
+    <string name="code_example_label">Code Example</string>
+    <string name="section_component_1">Component 1</string>
+    <string name="section_component_2">Component 2</string>
+    <string name="payment_title">Select Payment Method</string>
+    <string name="payment_credit_card">Credit Card</string>
+    <string name="payment_credit_card_detail">VISA •••• 1234</string>
+    <string name="payment_bank_transfer">Bank Transfer</string>
+    <string name="payment_bank_detail">Bank •••• 5678</string>
+    <string name="payment_button">Pay Now</string>
+    <string name="dialog_title">Are you sure you want to leave?</string>
+    <string name="dialog_body">Your unsaved changes may be lost.</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_confirm">Leave</string>
+
+    <!-- Color names -->
+    <string name="color_primary">Primary</string>
+    <string name="color_secondary">Secondary</string>
+    <string name="color_error">Error</string>
+    <string name="color_warning">Warning</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_green">Green</string>
+    <string name="color_red">Red</string>
+    <string name="color_amber">Amber</string>
+</resources>

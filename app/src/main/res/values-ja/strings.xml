@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ComposeInspector デモ</string>
+
+    <!-- Tabs -->
+    <string name="tab_with_tokens">トークンあり</string>
+    <string name="tab_without_tokens">トークンなし</string>
+    <string name="tab_component_test">コンポーネント</string>
+
+    <!-- Token Demo Screen -->
+    <string name="token_demo_title">ComposeInspector デモ</string>
+    <string name="token_demo_description">FABをタップしてInspectorを有効にし、要素をタップしてください。</string>
+    <string name="section_colors">カラー</string>
+    <string name="section_surface_border">サーフェス &amp; ボーダー</string>
+    <string name="section_spacing">スペーシング</string>
+    <string name="section_typography">タイポグラフィサンプル</string>
+    <string name="card_title">カードタイトル</string>
+    <string name="card_body">ボーダーと角丸が適用されたサーフェスカード内の本文テキストです。</string>
+    <string name="label_text">ラベルテキスト</string>
+    <string name="padding_container">paddingL (24dp) コンテナ</string>
+    <string name="corner_radius">cornerRadiusL (16dp)</string>
+
+    <!-- Basic Demo Screen -->
+    <string name="basic_demo_title">トークンなしデモ</string>
+    <string name="basic_demo_description">トークン未登録。Inspectorにはhex/dp値のみ表示されます。</string>
+    <string name="section_card">カード</string>
+    <string name="basic_card_body">ハードコードされた色とサイズの本文テキストです。Inspectorにトークン名は表示されません。</string>
+    <string name="basic_padding_container">24dp パディングコンテナ</string>
+    <string name="basic_corner_radius">16dp 角丸</string>
+    <string name="section_typography_basic">タイポグラフィ</string>
+
+    <!-- Component Test Screen -->
+    <string name="inspector_demo_title">コンポーネント</string>
+    <string name="launch_section_description">直接使用するか、Previewでお試しください。各コンポーネント下のボタンをタップするとInspectorで開きます。</string>
+    <string name="open_component_1">Component 1 を開く</string>
+    <string name="open_component_2">Component 2 を開く</string>
+    <string name="code_example_label">コード例</string>
+    <string name="section_component_1">Component 1</string>
+    <string name="section_component_2">Component 2</string>
+    <string name="payment_title">お支払い方法の選択</string>
+    <string name="payment_credit_card">クレジットカード</string>
+    <string name="payment_credit_card_detail">VISA •••• 1234</string>
+    <string name="payment_bank_transfer">銀行振込</string>
+    <string name="payment_bank_detail">銀行 •••• 5678</string>
+    <string name="payment_button">支払う</string>
+    <string name="dialog_title">本当に退出しますか？</string>
+    <string name="dialog_body">保存されていない変更が失われる可能性があります。</string>
+    <string name="dialog_cancel">キャンセル</string>
+    <string name="dialog_confirm">退出</string>
+
+    <!-- Color names -->
+    <string name="color_primary">Primary</string>
+    <string name="color_secondary">Secondary</string>
+    <string name="color_error">Error</string>
+    <string name="color_warning">Warning</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_green">Green</string>
+    <string name="color_red">Red</string>
+    <string name="color_amber">Amber</string>
+</resources>

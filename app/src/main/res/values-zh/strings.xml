@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ComposeInspector 演示</string>
+
+    <!-- Tabs -->
+    <string name="tab_with_tokens">有Token</string>
+    <string name="tab_without_tokens">无Token</string>
+    <string name="tab_component_test">组件</string>
+
+    <!-- Token Demo Screen -->
+    <string name="token_demo_title">ComposeInspector 演示</string>
+    <string name="token_demo_description">点击FAB启用Inspector，然后点击任意元素。</string>
+    <string name="section_colors">颜色</string>
+    <string name="section_surface_border">Surface &amp; 边框</string>
+    <string name="section_spacing">间距</string>
+    <string name="section_typography">字体排版示例</string>
+    <string name="card_title">卡片标题</string>
+    <string name="card_body">这是带有边框和圆角的Surface卡片内的正文文本。</string>
+    <string name="label_text">标签文本</string>
+    <string name="padding_container">paddingL (24dp) 容器</string>
+    <string name="corner_radius">cornerRadiusL (16dp)</string>
+
+    <!-- Basic Demo Screen -->
+    <string name="basic_demo_title">无Token演示</string>
+    <string name="basic_demo_description">未注册Token。Inspector仅显示hex/dp值。</string>
+    <string name="section_card">卡片</string>
+    <string name="basic_card_body">使用硬编码颜色和尺寸的正文文本。Inspector不会显示Token名称。</string>
+    <string name="basic_padding_container">24dp 内边距容器</string>
+    <string name="basic_corner_radius">16dp 圆角</string>
+    <string name="section_typography_basic">字体排版</string>
+
+    <!-- Component Test Screen -->
+    <string name="inspector_demo_title">组件</string>
+    <string name="launch_section_description">直接使用或在Preview中试用。点击每个组件下方的按钮即可在Inspector中打开。</string>
+    <string name="open_component_1">打开 Component 1</string>
+    <string name="open_component_2">打开 Component 2</string>
+    <string name="code_example_label">代码示例</string>
+    <string name="section_component_1">Component 1</string>
+    <string name="section_component_2">Component 2</string>
+    <string name="payment_title">选择支付方式</string>
+    <string name="payment_credit_card">信用卡</string>
+    <string name="payment_credit_card_detail">VISA •••• 1234</string>
+    <string name="payment_bank_transfer">银行转账</string>
+    <string name="payment_bank_detail">银行 •••• 5678</string>
+    <string name="payment_button">立即支付</string>
+    <string name="dialog_title">确定要离开吗？</string>
+    <string name="dialog_body">未保存的更改可能会丢失。</string>
+    <string name="dialog_cancel">取消</string>
+    <string name="dialog_confirm">离开</string>
+
+    <!-- Color names -->
+    <string name="color_primary">Primary</string>
+    <string name="color_secondary">Secondary</string>
+    <string name="color_error">Error</string>
+    <string name="color_warning">Warning</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_green">Green</string>
+    <string name="color_red">Red</string>
+    <string name="color_amber">Amber</string>
+</resources>
