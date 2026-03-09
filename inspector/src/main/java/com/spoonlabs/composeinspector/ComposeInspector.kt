@@ -3,6 +3,8 @@ package com.spoonlabs.composeinspector
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.FrameLayout
 import androidx.compose.runtime.Composable
@@ -10,7 +12,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import java.util.Collections
 import java.util.WeakHashMap
 import java.util.concurrent.atomic.AtomicReference
 
@@ -42,6 +43,9 @@ object ComposeInspector {
      */
     fun init(enabled: Boolean) {
         enabledState.value = enabled
+        if (!enabled) {
+            detachAll()
+        }
     }
 
     // Token registries
@@ -134,8 +138,9 @@ object ComposeInspector {
 
     // --- Window-level overlay management ---
 
-    private val attachedActivities: MutableMap<Activity, ComposeView> =
-        Collections.synchronizedMap(WeakHashMap())
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private val attachedActivities: MutableMap<Activity, ComposeView> = WeakHashMap()
 
     /**
      * Attach the Inspector overlay to an Activity window.
@@ -179,6 +184,20 @@ object ComposeInspector {
                     owner.lifecycle.removeObserver(this)
                 }
             })
+        }
+    }
+
+    private fun detachAll() {
+        val runDetach = Runnable {
+            val activities = attachedActivities.keys.toList()
+            for (activity in activities) {
+                detachFromWindow(activity)
+            }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runDetach.run()
+        } else {
+            mainHandler.post(runDetach)
         }
     }
 
