@@ -139,10 +139,12 @@ internal fun InspectorOverlay(
                     var modifierBgTokens = emptyList<String>()
 
                     // Overlay 자체를 제외하고 ComposeView 탐색
-                    val inspectorOverlay = ComposeInspector.getOverlayView(activity)
+                    // overlayView = LocalView.current (AndroidComposeView) 를 직접 전달
+                    // getOverlayView()는 ComposeView 래퍼를 반환하므로 AndroidComposeView와
+                    // 비교 실패할 수 있음. 두 레벨 모두 전달하여 확실히 제외.
                     val composeViews = LayoutInspector.findComposeViews(
                         contentView,
-                        excludeView = inspectorOverlay,
+                        excludeView = overlayView,
                     )
 
                     // Overlay 좌표 기준점
@@ -154,49 +156,71 @@ internal fun InspectorOverlay(
                     val tapScreenY = offset.y + overlayLoc[1]
 
                     // 탭 위치에 해당하는 ComposeView 찾기
-                    val targetComposeView = composeViews.firstOrNull { cv ->
-                        val loc = IntArray(2)
-                        cv.getLocationOnScreen(loc)
-                        tapScreenX >= loc[0] && tapScreenX <= loc[0] + cv.width &&
-                            tapScreenY >= loc[1] && tapScreenY <= loc[1] + cv.height
-                    } ?: composeViews.firstOrNull()
+                    // z-order 역순(최상단부터)으로 시도하여 실제 LayoutNode가 있는 CV를 선택
+                    Log.d("InspectorOverlay", "tap screen=(${tapScreenX}, ${tapScreenY}), composeViews=${composeViews.size}")
+                    val hitViews = composeViews
+                        .filter { cv ->
+                            val loc = IntArray(2)
+                            cv.getLocationOnScreen(loc)
+                            val hit = cv.width > 0 && cv.height > 0 &&
+                                tapScreenX >= loc[0] && tapScreenX <= loc[0] + cv.width &&
+                                tapScreenY >= loc[1] && tapScreenY <= loc[1] + cv.height
+                            Log.d("InspectorOverlay", "  cv=${cv::class.java.simpleName}@${Integer.toHexString(cv.hashCode())} loc=(${loc[0]},${loc[1]}) size=${cv.width}x${cv.height} hit=$hit")
+                            hit
+                        }
 
                     var cvOffsetX = 0f
                     var cvOffsetY = 0f
 
-                    val inspection = if (targetComposeView != null) {
-                        // ComposeView의 overlay 기준 상대 위치
+                    // z-order 역순(최상단부터) 시도 — 첫 유효 결과 즉시 사용
+                    var inspection: InspectionResult? = null
+                    var targetComposeView: View? = null
+                    for (cv in hitViews.asReversed()) {
                         val cvLoc = IntArray(2)
-                        targetComposeView.getLocationOnScreen(cvLoc)
-                        cvOffsetX = (cvLoc[0] - overlayLoc[0]).toFloat()
-                        cvOffsetY = (cvLoc[1] - overlayLoc[1]).toFloat()
-
-                        // 탭 좌표를 ComposeView 로컬 좌표로 변환
+                        cv.getLocationOnScreen(cvLoc)
                         val localOffset = Offset(
-                            offset.x - cvOffsetX,
-                            offset.y - cvOffsetY,
+                            offset.x - (cvLoc[0] - overlayLoc[0]).toFloat(),
+                            offset.y - (cvLoc[1] - overlayLoc[1]).toFloat(),
                         )
-
                         val result = LayoutInspector.detectAll(
-                            composeView = targetComposeView,
+                            composeView = cv,
                             position = localOffset,
                             density = density.density,
                             dimensionMap = dimensionMap,
                             typoMap = typoMap,
                             colorMap = colorMap,
                         )
-                        result.textColorArgb?.let { argb ->
-                            val r = TokenResolver.resolveColor(colorMap, argb)
-                            if (r.exact || r.distance < 15) textColorTokens = r.tokens
+                        Log.d("InspectorOverlay", "tryCV=${cv::class.java.simpleName}@${Integer.toHexString(cv.hashCode())} size=${cv.width}x${cv.height} bounds=${result.highlightBounds} component=${result.componentType}")
+
+                        // root-node 필터: bounds == CV 전체 + component null → 스킵
+                        val bounds = result.highlightBounds
+                        val isRootOnly = bounds != null &&
+                            bounds.left <= 0f && bounds.top <= 0f &&
+                            bounds.width >= cv.width - 1f && bounds.height >= cv.height - 1f &&
+                            result.componentType == null
+
+                        if (bounds != null && !isRootOnly) {
+                            targetComposeView = cv
+                            cvOffsetX = (cvLoc[0] - overlayLoc[0]).toFloat()
+                            cvOffsetY = (cvLoc[1] - overlayLoc[1]).toFloat()
+                            result.textColorArgb?.let { argb ->
+                                val r = TokenResolver.resolveColor(colorMap, argb)
+                                if (r.exact || r.distance < 15) textColorTokens = r.tokens
+                            }
+                            result.modifierBgArgb?.let { argb ->
+                                val r = TokenResolver.resolveColor(colorMap, argb)
+                                if (r.exact || r.distance < 15) modifierBgTokens = r.tokens
+                            }
+                            inspection = result
+                            break
                         }
-                        result.modifierBgArgb?.let { argb ->
-                            val r = TokenResolver.resolveColor(colorMap, argb)
-                            if (r.exact || r.distance < 15) modifierBgTokens = r.tokens
-                        }
-                        result
-                    } else {
-                        null
                     }
+                    // fallback
+                    if (targetComposeView == null) {
+                        targetComposeView = hitViews.lastOrNull()
+                            ?: composeViews.firstOrNull { it.width > 0 && it.height > 0 }
+                    }
+                    Log.d("InspectorOverlay", "targetComposeView=${targetComposeView?.let { it::class.java.simpleName + "@" + Integer.toHexString(it.hashCode()) + " size=${it.width}x${it.height}" }}")
 
                     // Highlight bounds를 overlay 좌표로 변환
                     val adjustedHighlightBounds = inspection?.highlightBounds?.let { bounds ->

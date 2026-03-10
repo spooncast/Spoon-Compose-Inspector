@@ -21,7 +21,7 @@ private const val TAG = "LayoutInspector"
  */
 internal object LayoutInspector {
 
-    private const val MAX_TREE_DEPTH = 50
+    private const val MAX_TREE_DEPTH = 100
 
     // --- Reflection lazy cache ---
 
@@ -102,18 +102,30 @@ internal object LayoutInspector {
 
     fun findComposeViews(root: View, excludeView: View? = null): List<View> {
         val result = mutableListOf<View>()
+        Log.d(TAG, "findComposeViews: root=${root::class.java.simpleName}, excludeView=${excludeView?.let { it::class.java.simpleName + "@" + Integer.toHexString(it.hashCode()) }}")
         collectComposeViews(root, result, excludeView)
+        Log.d(TAG, "findComposeViews: found ${result.size} ComposeViews")
+        result.forEachIndexed { index, view ->
+            val loc = IntArray(2)
+            view.getLocationOnScreen(loc)
+            Log.d(TAG, "  [$index] ${view::class.java.name}@${Integer.toHexString(view.hashCode())} loc=(${loc[0]},${loc[1]}) size=${view.width}x${view.height} parent=${view.parent?.let { it::class.java.simpleName }}")
+        }
         return result
     }
 
     private fun collectComposeViews(view: View, result: MutableList<View>, excludeView: View?) {
-        if (view === excludeView) return
+        if (excludeView != null) {
+            // excludeView 자체를 제외
+            if (view === excludeView) return
+            // excludeView의 부모(ComposeView 래퍼)도 제외 — 하위 트리 전체 스킵
+            val excludeParent = excludeView.parent
+            if (excludeParent is View && view === excludeParent) return
+        }
         if (view::class.java.simpleName == "AndroidComposeView") {
             result.add(view)
         }
-        // 역순 탐색 — 나중에 추가된 자식(최상단)이 리스트 앞에 오도록
         if (view is ViewGroup) {
-            for (i in view.childCount - 1 downTo 0) {
+            for (i in 0 until view.childCount) {
                 collectComposeViews(view.getChildAt(i), result, excludeView)
             }
         }
@@ -238,11 +250,16 @@ internal object LayoutInspector {
         val parent = allNodes.getOrNull(1) ?: return emptyList()
         val parentNode = findNodeContaining(rootNode, parent.second) ?: return emptyList()
         val siblings = getChildren(parentNode)
-        val siblingBounds = siblings.mapNotNull { child ->
+        val unsortedBounds = siblings.mapNotNull { child ->
             getNodeBounds(child)?.let { b -> if (b.width > 0 && b.height > 0) b else null }
-        }.sortedBy { it.left + it.top }
+        }
+        if (unsortedBounds.size < 2) return emptyList()
 
-        if (siblingBounds.size < 2) return emptyList()
+        // 자식 배치 패턴으로 방향 결정: 수평 spread > 수직 spread → Row
+        val hSpread = unsortedBounds.maxOf { it.left } - unsortedBounds.minOf { it.left }
+        val vSpread = unsortedBounds.maxOf { it.top } - unsortedBounds.minOf { it.top }
+        val isHorizontal = hSpread > vSpread
+        val siblingBounds = unsortedBounds.sortedBy { if (isHorizontal) it.left else it.top }
 
         val results = mutableListOf<SpacingResult>()
         for (i in 0 until siblingBounds.size - 1) {

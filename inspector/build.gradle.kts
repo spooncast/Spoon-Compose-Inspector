@@ -54,9 +54,9 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 from(components["release"])
-                groupId = "com.spoonlabs"
-                artifactId = "compose-inspector"
-                version = "1.2.0"
+                groupId = "com.github.spooncast"
+                artifactId = "Spoon-Compose-Inspector"
+                version = "1.2.1"
             }
         }
     }
