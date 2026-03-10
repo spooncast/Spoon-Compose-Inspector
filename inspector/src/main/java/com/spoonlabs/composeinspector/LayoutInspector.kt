@@ -108,13 +108,14 @@ internal object LayoutInspector {
 
     private fun collectComposeViews(view: View, result: MutableList<View>, excludeView: View?) {
         if (view === excludeView) return
-        if (view::class.java.simpleName == "AndroidComposeView") {
-            result.add(view)
-        }
+        // 역순 탐색 — 나중에 추가된 자식(최상단)이 리스트 앞에 오도록
         if (view is ViewGroup) {
-            for (i in 0 until view.childCount) {
+            for (i in view.childCount - 1 downTo 0) {
                 collectComposeViews(view.getChildAt(i), result, excludeView)
             }
+        }
+        if (view::class.java.simpleName == "AndroidComposeView") {
+            result.add(view)
         }
     }
 
