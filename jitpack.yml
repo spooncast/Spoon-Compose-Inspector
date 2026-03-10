@@ -1,4 +1,6 @@
 jdk:
   - openjdk17
+before_install:
+  - yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
 install:
-  - ./gradlew :inspector:publishToMavenLocal
+  - ./gradlew :inspector:publishToMavenLocal --no-daemon
