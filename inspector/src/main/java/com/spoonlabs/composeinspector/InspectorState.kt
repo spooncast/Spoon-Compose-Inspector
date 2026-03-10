@@ -43,6 +43,8 @@ internal data class DetectedInfo(
     val tint: TintResult?,
     // Component type (Column, Row, Box, etc.)
     val componentType: String?,
+    // Layout arrangement/alignment (Column, Row, Box)
+    val layoutInfo: LayoutInfo?,
 )
 
 internal class InspectorState {

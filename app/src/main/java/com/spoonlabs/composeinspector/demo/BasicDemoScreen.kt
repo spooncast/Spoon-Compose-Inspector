@@ -224,8 +224,130 @@ fun BasicDemoScreen(modifier: Modifier = Modifier) {
             )
         }
 
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color(0xFFE5E7EB)),
+        )
+
+        // LAYOUT
+        Text(
+            text = stringResource(R.string.section_layout),
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp),
+            color = Color(0xFF111827),
+        )
+
+        // Row — SpaceBetween + CenterVertically
+        LayoutSampleCard(label = "Row: SpaceBetween, CenterVertically") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ColorDot(Color(0xFF6366F1), 32)
+                ColorDot(Color(0xFF10B981), 48)
+                ColorDot(Color(0xFFEF4444), 32)
+            }
+        }
+
+        // Column — spacedBy(12.dp) + CenterHorizontally
+        LayoutSampleCard(label = "Column: spacedBy(12dp), CenterHorizontally") {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ColorDot(Color(0xFF6366F1), 40)
+                ColorDot(Color(0xFF10B981), 40)
+                ColorDot(Color(0xFFEF4444), 40)
+            }
+        }
+
+        // Row — SpaceEvenly + Bottom
+        LayoutSampleCard(label = "Row: SpaceEvenly, Bottom") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                ColorDot(Color(0xFFF59E0B), 24)
+                ColorDot(Color(0xFF6366F1), 40)
+                ColorDot(Color(0xFFF59E0B), 24)
+            }
+        }
+
+        // Box — Center
+        LayoutSampleCard(label = "Box: Center") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                ColorDot(Color(0xFF6366F1), 48)
+            }
+        }
+
+        // Box — BottomEnd
+        LayoutSampleCard(label = "Box: BottomEnd") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                contentAlignment = Alignment.BottomEnd,
+            ) {
+                ColorDot(Color(0xFFEF4444), 36)
+            }
+        }
+
+        // Column — Top + End
+        LayoutSampleCard(label = "Column: Top, End") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.End,
+            ) {
+                ColorDot(Color(0xFF10B981), 32)
+                ColorDot(Color(0xFF6366F1), 32)
+            }
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
     }
+}
+
+@Composable
+private fun LayoutSampleCard(label: String, content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFF3F4F6))
+            .padding(12.dp),
+    ) {
+        Text(
+            text = label,
+            style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+            color = Color(0xFF9CA3AF),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        content()
+    }
+}
+
+@Composable
+private fun ColorDot(color: Color, sizeDp: Int) {
+    Box(
+        modifier = Modifier
+            .size(sizeDp.dp)
+            .clip(RoundedCornerShape(sizeDp.dp / 2))
+            .background(color),
+    )
 }
 
 @Composable

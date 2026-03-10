@@ -72,6 +72,7 @@ private val BorderColor = Color(0xFF2DD4BF)
 private val ShadowColor = Color(0xFF94A3B8)
 private val TintColor = Color(0xFFFB923C)
 private val A11yColor = Color(0xFF4ADE80)
+private val LayoutColor = Color(0xFF22D3EE)
 
 @Composable
 internal fun InspectorOverlay(
@@ -230,6 +231,7 @@ internal fun InspectorOverlay(
                         shadow = inspection?.shadow,
                         tint = inspection?.tint,
                         componentType = inspection?.componentType,
+                        layoutInfo = inspection?.layoutInfo,
                     )
                     if (state.detectedInfo.value != newInfo) {
                         state.detectedInfo.value = newInfo
@@ -363,6 +365,25 @@ private fun InspectorTooltip(
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
             )
+        }
+
+        // LAYOUT (arrangement + alignment — 기본값 제외)
+        info.layoutInfo?.let { layout ->
+            val parts = listOfNotNull(
+                layout.arrangement,
+                layout.alignment,
+            )
+            if (parts.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                SectionLabel("LAYOUT", LayoutColor)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = parts.joinToString(" \u00B7 "), // "·" 구분자
+                    color = LayoutColor.copy(alpha = 0.85f),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
         }
 
         // PADDING (SELF only)

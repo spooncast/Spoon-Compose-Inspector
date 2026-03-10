@@ -108,14 +108,14 @@ internal object LayoutInspector {
 
     private fun collectComposeViews(view: View, result: MutableList<View>, excludeView: View?) {
         if (view === excludeView) return
+        if (view::class.java.simpleName == "AndroidComposeView") {
+            result.add(view)
+        }
         // 역순 탐색 — 나중에 추가된 자식(최상단)이 리스트 앞에 오도록
         if (view is ViewGroup) {
             for (i in view.childCount - 1 downTo 0) {
                 collectComposeViews(view.getChildAt(i), result, excludeView)
             }
-        }
-        if (view::class.java.simpleName == "AndroidComposeView") {
-            result.add(view)
         }
     }
 
@@ -186,7 +186,8 @@ internal object LayoutInspector {
         val border = extractBorder(innerModifiers, colorMap)
         val shadow = extractShadow(innerModifiers)
         val tint = extractTint(innerModifiers, colorMap)
-        val componentType = innerNode?.let { inferComponentType(it, innerModifiers, semantics) }
+        val (componentType, layoutInfo) = innerNode?.let { inferComponentAndLayout(it, innerModifiers, semantics) }
+            ?: ComponentResult(null, null)
 
         val spacings = if (allNodes.size >= 2) {
             detectSpacingFromNodes(rootNode, allNodes, density, dimensionMap)
@@ -209,6 +210,7 @@ internal object LayoutInspector {
             shadow = shadow,
             tint = tint,
             componentType = componentType,
+            layoutInfo = layoutInfo,
         )
     }
 
@@ -798,7 +800,12 @@ internal object LayoutInspector {
         "BottomSheet", "Dialog", "Drawer", "Navigation",
     )
 
-    private fun inferComponentType(node: Any, modifiers: List<ModifierEntry>, semantics: SemanticsInfo?): String? {
+    private data class ComponentResult(
+        val type: String?,
+        val layoutInfo: LayoutInfo?,
+    )
+
+    private fun inferComponentAndLayout(node: Any, modifiers: List<ModifierEntry>, semantics: SemanticsInfo?): ComponentResult {
         return try {
             // 1) measurePolicy 기반: Column, Row, Box 등 레이아웃 컴포넌트
             for (field in node::class.java.declaredFields) {
@@ -813,15 +820,143 @@ internal object LayoutInspector {
                         .takeIf { it.isNotEmpty() && it != className }
                         ?: continue
                     if (knownComponentTypes.any { name.contains(it, ignoreCase = true) }) {
-                        return name
+                        return ComponentResult(name, extractLayoutInfo(policy, name))
                     }
                 }
             }
             // 2) modifier 클래스명 기반: Text, Image, TextField 등 leaf 컴포넌트
-            inferComponentTypeFromModifiers(modifiers, semantics)
+            ComponentResult(inferComponentTypeFromModifiers(modifiers, semantics), null)
+        } catch (_: Exception) {
+            ComponentResult(null, null)
+        }
+    }
+
+    // 기본값 — 표시할 필요 없는 값들 (lowercase로 비교)
+    private val defaultArrangements = setOf("top", "start")
+    private val defaultAlignments = setOf("start", "top", "topstart")
+
+    private fun extractLayoutInfo(measurePolicy: Any, componentType: String): LayoutInfo? {
+        return try {
+            var arrangement: String? = null
+            var alignment: String? = null
+
+            for (field in measurePolicy::class.java.declaredFields) {
+                field.isAccessible = true
+                val value = field.get(measurePolicy) ?: continue
+                val fieldName = field.name.lowercase()
+
+                when {
+                    fieldName.contains("arrangement") -> {
+                        arrangement = resolveArrangementName(value)
+                    }
+                    fieldName.contains("alignment") -> {
+                        alignment = resolveAlignmentName(value)
+                    }
+                }
+            }
+
+            // 기본값 필터링 (case-insensitive)
+            if (arrangement?.lowercase() in defaultArrangements) arrangement = null
+            if (alignment?.lowercase() in defaultAlignments) alignment = null
+
+            if (arrangement != null || alignment != null) LayoutInfo(arrangement, alignment) else null
         } catch (_: Exception) {
             null
         }
+    }
+
+    private val knownArrangements = setOf(
+        "Top", "Bottom", "Start", "End", "Center",
+        "SpaceBetween", "SpaceAround", "SpaceEvenly",
+    )
+
+    private fun resolveArrangementName(value: Any): String? {
+        val cls = value::class.java
+
+        // spacedBy(n.dp) — spacing 필드에서 값 추출
+        for (field in cls.declaredFields) {
+            if (field.name.contains("spacing", ignoreCase = true)) {
+                field.isAccessible = true
+                val spacing = field.get(value)
+                if (spacing is Float && spacing > 0f) {
+                    return "spacedBy(${spacing.roundToInt()}dp)"
+                }
+            }
+        }
+
+        // 알려진 이름만 허용 — 클래스명, toString 순으로 매칭
+        val candidates = listOf(
+            cls.simpleName,
+            value.toString(),
+        )
+        for (candidate in candidates) {
+            for (known in knownArrangements) {
+                if (candidate.contains(known, ignoreCase = true)) return known
+            }
+        }
+        return null
+    }
+
+    private fun resolveAlignmentName(value: Any): String? {
+        return try {
+            val cls = value::class.java
+            val fields = cls.declaredFields
+
+            // BiasAlignment.Horizontal / BiasAlignment.Vertical (1D — Column, Row)
+            val biasField = fields.firstOrNull { it.name == "bias" }
+            if (biasField != null) {
+                biasField.isAccessible = true
+                val bias = biasField.getFloat(value)
+                val isHorizontal = cls.name.contains("Horizontal", ignoreCase = true)
+                return if (isHorizontal) mapHorizontalBias(bias) else mapVerticalBias(bias)
+            }
+
+            // BiasAlignment (2D — Box의 contentAlignment)
+            val hBiasField = fields.firstOrNull { it.name == "horizontalBias" }
+            val vBiasField = fields.firstOrNull { it.name == "verticalBias" }
+            if (hBiasField != null && vBiasField != null) {
+                hBiasField.isAccessible = true
+                vBiasField.isAccessible = true
+                return map2dBias(vBiasField.getFloat(value), hBiasField.getFloat(value))
+            }
+
+            null // 알 수 없는 형태는 표시하지 않음
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun mapHorizontalBias(bias: Float): String? = when {
+        bias <= -0.9f -> "Start"
+        bias in -0.1f..0.1f -> "CenterHorizontally"
+        bias >= 0.9f -> "End"
+        else -> null
+    }
+
+    private fun mapVerticalBias(bias: Float): String? = when {
+        bias <= -0.9f -> "Top"
+        bias in -0.1f..0.1f -> "CenterVertically"
+        bias >= 0.9f -> "Bottom"
+        else -> null
+    }
+
+    private fun map2dBias(vBias: Float, hBias: Float): String? {
+        val v = when {
+            vBias <= -0.9f -> "Top"
+            vBias in -0.1f..0.1f -> "Center"
+            vBias >= 0.9f -> "Bottom"
+            else -> return null
+        }
+        val h = when {
+            hBias <= -0.9f -> "Start"
+            hBias in -0.1f..0.1f -> "Center"
+            hBias >= 0.9f -> "End"
+            else -> return null
+        }
+        if (v == "Center" && h == "Center") return "Center"
+        if (v == "Center") return "Center$h"
+        if (h == "Center") return "${v}Center"
+        return "$v$h"
     }
 
     private fun inferComponentTypeFromModifiers(modifiers: List<ModifierEntry>, semantics: SemanticsInfo?): String? {
@@ -1119,6 +1254,11 @@ internal data class TintResult(
     val colorTokens: List<String>,
 )
 
+internal data class LayoutInfo(
+    val arrangement: String?,
+    val alignment: String?,
+)
+
 internal class ModifierEntry(
     val modifier: Any,
     val className: String,
@@ -1140,4 +1280,5 @@ internal data class InspectionResult(
     val shadow: ShadowResult? = null,
     val tint: TintResult? = null,
     val componentType: String? = null,
+    val layoutInfo: LayoutInfo? = null,
 )

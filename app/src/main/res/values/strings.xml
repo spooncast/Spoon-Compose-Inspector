@@ -48,6 +48,9 @@
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_confirm">Leave</string>
 
+    <!-- Layout Demo -->
+    <string name="section_layout">Layout</string>
+
     <!-- Color names -->
     <string name="color_primary">Primary</string>
     <string name="color_secondary">Secondary</string>
