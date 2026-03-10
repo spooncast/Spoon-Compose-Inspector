@@ -4,26 +4,28 @@
 # Keep the inspector library itself
 -keep class com.spoonlabs.composeinspector.** { *; }
 
-# Keep Compose internal classes accessed via reflection
+# Keep Compose internal classes accessed via Class.forName / reflection
 -keep class androidx.compose.ui.node.LayoutNode { *; }
 -keep class androidx.compose.ui.platform.AndroidComposeView { *; }
 -keep class androidx.compose.ui.layout.LayoutCoordinates { *; }
 -keep class androidx.compose.ui.layout.LayoutCoordinatesKt { *; }
-
-# Keep modifier info classes used by LayoutInspector
 -keep class androidx.compose.ui.node.ModifierInfo { *; }
--keepclassmembers class * implements androidx.compose.ui.Modifier$Element { *; }
-
-# Keep Compose internal layout/drawing classes accessed via reflection
--keepclassmembers class androidx.compose.ui.node.** { *; }
--keepclassmembers class androidx.compose.ui.layout.** { *; }
--keepclassmembers class androidx.compose.ui.draw.** { *; }
--keepclassmembers class androidx.compose.ui.graphics.** { *; }
--keepclassmembers class androidx.compose.foundation.layout.** { *; }
--keepclassmembers class androidx.compose.foundation.** { *; }
--keepclassmembers class androidx.compose.material.** { *; }
--keepclassmembers class androidx.compose.material3.** { *; }
--keepclassmembers class androidx.compose.ui.text.** { *; }
 
 # Keep InspectorLauncherActivity (referenced in Intent)
 -keep class com.spoonlabs.composeinspector.InspectorLauncherActivity
+
+# Keep Compose classes and members accessed via reflection
+# Inspector uses className.contains("TextStyle"), className.contains("SolidColor"), etc.
+# so class names must be preserved (not just members)
+-keep class androidx.compose.ui.node.** { *; }
+-keep class androidx.compose.ui.layout.** { *; }
+-keep class androidx.compose.ui.draw.** { *; }
+-keep class androidx.compose.ui.graphics.** { *; }
+-keep class androidx.compose.ui.text.** { *; }
+-keep class androidx.compose.foundation.layout.** { *; }
+-keep class androidx.compose.foundation.** { *; }
+-keep class androidx.compose.material.** { *; }
+-keep class androidx.compose.material3.** { *; }
+
+# Keep Modifier implementations (accessed via getModifierInfo reflection)
+-keep class * implements androidx.compose.ui.Modifier$Element { *; }
