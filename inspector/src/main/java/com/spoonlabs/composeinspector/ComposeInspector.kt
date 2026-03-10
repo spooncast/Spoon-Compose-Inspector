@@ -169,7 +169,7 @@ object ComposeInspector {
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
-        overlayView.bringToFront()
+        overlayView.elevation = Float.MAX_VALUE
 
         overlayView.setContent {
             ComposeInspectorWindow(activity = activity)
