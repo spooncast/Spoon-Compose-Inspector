@@ -2,6 +2,7 @@ package com.spoonlabs.composeinspector
 
 import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
@@ -58,8 +59,10 @@ object ComposeInspector {
      * Automatically rebuilds internal color buckets for approximate matching.
      */
     fun setColorTokens(colorMap: Map<Int, List<String>>) {
-        this.colorMap = colorMap
+        // buckets를 먼저 빌드 — resolveColor에서 exact match가 먼저 체크되므로
+        // buckets가 잠시 새 맵 기준이어도 colorMap이 아직 이전이면 exact에서 처리됨
         TokenResolver.buildColorBuckets(colorMap)
+        this.colorMap = colorMap
     }
 
     /**
@@ -96,6 +99,54 @@ object ComposeInspector {
      */
     fun buildTypoMap(target: Any): Map<String, List<String>> =
         TokenResolver.buildTypoMapFromObject(target)
+
+    /**
+     * Register all design tokens and attach the inspector overlay in one call.
+     * For a single color theme object.
+     */
+    fun setDesignTokens(
+        context: Context,
+        colors: Any,
+        dimen: Any,
+        typo: Any,
+    ) {
+        setDesignTokens(context, listOf(colors), dimen, typo)
+    }
+
+    /**
+     * Register all design tokens and attach the inspector overlay in one call.
+     * Accepts multiple color objects (e.g. light + dark) which are automatically merged.
+     */
+    fun setDesignTokens(
+        context: Context,
+        colors: List<Any>,
+        dimen: Any,
+        typo: Any,
+    ) {
+        if (!isEnabled) return
+        val mergedColorMap = mergeColorMaps(colors.map { buildColorMap(it) })
+        setColorTokens(mergedColorMap)
+        setDimensionTokens(buildDimensionMap(dimen))
+        setTypographyTokens(buildTypoMap(typo))
+        context.findActivity()?.let { attachToWindow(it) }
+    }
+
+    private fun mergeColorMaps(maps: List<Map<Int, List<String>>>): Map<Int, List<String>> {
+        if (maps.size == 1) return maps[0]
+        val allKeys = maps.flatMapTo(mutableSetOf()) { it.keys }
+        return allKeys.associateWith { key ->
+            maps.flatMap { it[key].orEmpty() }.distinct()
+        }
+    }
+
+    private fun Context.findActivity(): Activity? {
+        var ctx = this
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return null
+    }
 
     // Color priority prefixes for tooltip display
     @Volatile
@@ -140,7 +191,8 @@ object ComposeInspector {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private val attachedActivities: MutableMap<Activity, ComposeView> = WeakHashMap()
+    private val attachedActivities: MutableMap<Activity, ComposeView> =
+        java.util.Collections.synchronizedMap(WeakHashMap())
 
     /**
      * Attach the Inspector overlay to an Activity window.
@@ -169,7 +221,7 @@ object ComposeInspector {
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
-        overlayView.elevation = Float.MAX_VALUE
+        overlayView.elevation = 100f
 
         overlayView.setContent {
             ComposeInspectorWindow(activity = activity)
@@ -189,7 +241,7 @@ object ComposeInspector {
 
     private fun detachAll() {
         val runDetach = Runnable {
-            val activities = attachedActivities.keys.toList()
+            val activities = synchronized(attachedActivities) { attachedActivities.keys.toList() }
             for (activity in activities) {
                 detachFromWindow(activity)
             }

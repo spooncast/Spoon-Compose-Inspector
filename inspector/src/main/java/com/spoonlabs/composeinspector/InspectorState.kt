@@ -31,6 +31,18 @@ internal data class DetectedInfo(
     // Modifier background color (from reflection)
     val modifierBgArgb: Int?,
     val modifierBgTokens: List<String>,
+    // Semantics (testTag, contentDescription)
+    val semantics: SemanticsInfo?,
+    // Opacity (alpha < 1.0)
+    val alpha: Float?,
+    // Border (width + color)
+    val border: BorderResult?,
+    // Shadow / Elevation
+    val shadow: ShadowResult?,
+    // Tint (ColorFilter on Icon/Image)
+    val tint: TintResult?,
+    // Component type (Column, Row, Box, etc.)
+    val componentType: String?,
 )
 
 internal class InspectorState {

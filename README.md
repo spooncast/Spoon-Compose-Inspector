@@ -6,6 +6,9 @@ A lightweight Compose UI inspector for Android. Tap any element to view its layo
 
 - **Layout Inspector** — Tap any composable to see its bounds, padding, size, and position
 - **Design Token Mapping** — Automatically resolves colors, dimensions, and typography to your design system token names
+- **Component Type Detection** — Identifies Column, Row, Box, Text, Image, Icon, TextField and more
+- **Visual Property Extraction** — Background color, text color, gradient/brush, tint, opacity, border, shadow, corner radius
+- **Semantics** — Shows testTag, contentDescription, and accessibility roles
 - **One-line Launcher** — Open any component in a standalone inspector screen with a single line of code
 - **Preview Integration** — Use `InspectablePreview` to add inspector support directly in `@Preview` functions
 - **Non-intrusive** — Only activates in debug builds; zero overhead in release
@@ -26,7 +29,7 @@ Add the dependency (debug only):
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.spooncast:Spoon-Compose-Inspector:1.0.0")
+    debugImplementation("com.github.spooncast:Spoon-Compose-Inspector:1.1.0")
 }
 ```
 
@@ -43,7 +46,19 @@ class MyApp : Application() {
 }
 ```
 
-### 2. Attach to a screen
+### 2. Register tokens and attach (recommended)
+
+```kotlin
+// Single color theme
+ComposeInspector.setDesignTokens(context, MyColors, MyDimensions, MyTypography)
+
+// Multiple color themes (light + dark auto-merge)
+ComposeInspector.setDesignTokens(context, listOf(lightColors, darkColors), MyDimensions, MyTypography)
+```
+
+`setDesignTokens` builds token maps via reflection, registers them, and attaches the overlay — all in one call.
+
+### 3. Or attach manually
 
 ```kotlin
 class MainActivity : ComponentActivity() {
@@ -57,7 +72,7 @@ class MainActivity : ComponentActivity() {
 
 A floating button appears. Tap it to enter inspect mode, then tap any element.
 
-### 3. Register design tokens (optional)
+### 4. Register design tokens individually (optional)
 
 ```kotlin
 ComposeInspector.setColorTokens(ComposeInspector.buildColorMap(MyColors))
@@ -65,7 +80,26 @@ ComposeInspector.setDimensionTokens(ComposeInspector.buildDimensionMap(MyDimensi
 ComposeInspector.setTypographyTokens(ComposeInspector.buildTypoMap(MyTypography))
 ```
 
-Token names will appear in the inspector tooltip when you tap an element.
+## Inspector Tooltip
+
+When you tap an element, the tooltip displays:
+
+| Section | Description |
+|---------|-------------|
+| **Title** | Component type (Column, Text, Icon...) + testTag |
+| **Size** | Width x Height in dp |
+| **Padding** | Self padding with token names |
+| **Typography** | Font size, weight, line height + token name |
+| **Color** | Background color with swatch + token names |
+| **Text Color** | Text color with token name |
+| **Opacity** | Alpha value when < 1.0 |
+| **Border** | Width + color with token name |
+| **Shadow** | Elevation in dp |
+| **Tint** | ColorFilter tint color with token name |
+| **Corner Radius** | Radius in dp + token name |
+| **Accessibility** | contentDescription |
+| **Parent Padding** | Parent node padding (below separator) |
+| **Spacing** | Sibling gap with token names (below separator) |
 
 ## One-line Component Launcher
 
@@ -113,6 +147,8 @@ class MyTestActivity : InspectorActivity() {
 | Method | Description |
 |--------|-------------|
 | `ComposeInspector.init(enabled)` | Initialize the inspector |
+| `ComposeInspector.setDesignTokens(context, colors, dimen, typo)` | Register all tokens + attach overlay in one call |
+| `ComposeInspector.setDesignTokens(context, colorsList, dimen, typo)` | Same but accepts multiple color objects (auto-merge) |
 | `ComposeInspector.attachToWindow(activity)` | Attach overlay to an activity |
 | `ComposeInspector.launch(context) { }` | Open a component in standalone inspector |
 | `ComposeInspector.setColorTokens(map)` | Register color token names |
@@ -121,6 +157,7 @@ class MyTestActivity : InspectorActivity() {
 | `ComposeInspector.buildColorMap(obj)` | Build color map from an object via reflection |
 | `ComposeInspector.buildDimensionMap(obj)` | Build dimension map from an object via reflection |
 | `ComposeInspector.buildTypoMap(obj)` | Build typography map from an object via reflection |
+| `ComposeInspector.setColorPriorityPrefixes(list)` | Set prefix priority for color token display |
 | `InspectablePreview(label, buttonText) { }` | Preview card with inspector launch button |
 
 ## Requirements

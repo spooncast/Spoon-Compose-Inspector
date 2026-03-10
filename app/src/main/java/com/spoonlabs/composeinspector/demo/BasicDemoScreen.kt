@@ -1,5 +1,6 @@
 package com.spoonlabs.composeinspector.demo
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,12 +16,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -150,6 +158,71 @@ fun BasicDemoScreen(modifier: Modifier = Modifier) {
         Text("16sp Normal", style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Normal), color = Color(0xFF111827))
         Text("14sp Normal", style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal), color = Color(0xFF6B7280))
         Text("12sp Medium", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium), color = Color(0xFF9CA3AF))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color(0xFFE5E7EB)),
+        )
+
+        // TINT
+        Text(
+            text = "Tint",
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp),
+            color = Color(0xFF111827),
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = "Favorite",
+                tint = Color(0xFFEF4444),
+                modifier = Modifier.size(40.dp),
+            )
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = "Star",
+                tint = Color(0xFFF59E0B),
+                modifier = Modifier.size(40.dp),
+            )
+            Image(
+                painter = rememberVectorPainter(Icons.Filled.Favorite),
+                contentDescription = "Tinted Image",
+                colorFilter = ColorFilter.tint(Color(0xFF6366F1)),
+                modifier = Modifier.size(40.dp),
+            )
+        }
+
+        // OPACITY
+        Text(
+            text = "Opacity",
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp),
+            color = Color(0xFF111827),
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF6366F1)),
+            )
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .alpha(0.5f)
+                    .background(Color(0xFF6366F1)),
+            )
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .alpha(0.2f)
+                    .background(Color(0xFF6366F1)),
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
     }

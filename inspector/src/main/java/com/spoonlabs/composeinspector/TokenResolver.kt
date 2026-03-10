@@ -28,6 +28,10 @@ internal object TokenResolver {
                     field.isAccessible = true
                     val rawLong = field.getLong(target)
                     val color = Color(rawLong.toULong())
+                    // Color가 아닌 Long 필드 필터링: Unspecified 또는 alpha=0 (투명) 제외
+                    if (color == Color.Unspecified) return@forEach
+                    val alpha = (color.toArgb() shr 24) and 0xFF
+                    if (alpha == 0) return@forEach
                     val argb = color.toArgb()
                     map.getOrPut(argb) { mutableListOf() }.add(field.name)
                 }
@@ -150,7 +154,10 @@ internal object TokenResolver {
             target.javaClass.declaredFields.forEach { field ->
                 if (field.type == Float::class.javaPrimitiveType) {
                     field.isAccessible = true
-                    val dpValue = (field.getFloat(target) * 10).roundToInt() / 10f
+                    val raw = field.getFloat(target)
+                    // Dp가 아닌 Float 필드 필터링: 0 이하 또는 비현실적 값 (>1000dp) 제외
+                    if (raw <= 0f || raw > 1000f) return@forEach
+                    val dpValue = (raw * 10).roundToInt() / 10f
                     map.getOrPut(dpValue) { mutableListOf() }.add(field.name)
                 }
             }

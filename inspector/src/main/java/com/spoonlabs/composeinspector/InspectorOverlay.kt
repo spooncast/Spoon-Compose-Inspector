@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -65,6 +66,12 @@ private val SizeColor = Color(0xFF60A5FA)
 private val TypoColor = Color(0xFFF472B6)
 private val SpacingColor = Color(0xFFFBBF24)
 private val CornerColor = Color(0xFFC084FC)
+private val IdentifierColor = Color(0xFF38BDF8)
+private val OpacityColor = Color(0xFFA78BFA)
+private val BorderColor = Color(0xFF2DD4BF)
+private val ShadowColor = Color(0xFF94A3B8)
+private val TintColor = Color(0xFFFB923C)
+private val A11yColor = Color(0xFF4ADE80)
 
 @Composable
 internal fun InspectorOverlay(
@@ -175,6 +182,7 @@ internal fun InspectorOverlay(
                             density = density.density,
                             dimensionMap = dimensionMap,
                             typoMap = typoMap,
+                            colorMap = colorMap,
                         )
                         result.textColorArgb?.let { argb ->
                             val r = TokenResolver.resolveColor(colorMap, argb)
@@ -216,6 +224,12 @@ internal fun InspectorOverlay(
                         textColorTokens = textColorTokens,
                         modifierBgArgb = inspection?.modifierBgArgb,
                         modifierBgTokens = modifierBgTokens,
+                        semantics = inspection?.semantics,
+                        alpha = inspection?.alpha,
+                        border = inspection?.border,
+                        shadow = inspection?.shadow,
+                        tint = inspection?.tint,
+                        componentType = inspection?.componentType,
                     )
                     if (state.detectedInfo.value != newInfo) {
                         state.detectedInfo.value = newInfo
@@ -305,7 +319,7 @@ private fun InspectorTooltip(
     }
 
     val tooltipX = with(density) {
-        val tooltipWidth = 240.dp.toPx()
+        val tooltipWidth = 280.dp.toPx()
         val margin = 8.dp.toPx()
         val centerX = info.position.x - tooltipWidth / 2
         centerX.coerceIn(margin, (overlaySize.width - tooltipWidth - margin).coerceAtLeast(margin))
@@ -321,7 +335,25 @@ private fun InspectorTooltip(
             .padding(14.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // === 1. SIZE ===
+        // === TITLE: componentType + testTag ===
+        val titleParts = listOfNotNull(
+            info.componentType,
+            info.semantics?.testTag?.let { "\"$it\"" },
+        )
+        if (titleParts.isNotEmpty()) {
+            Text(
+                text = titleParts.joinToString(" "),
+                color = IdentifierColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // ── SELF 정보 ──
+
+        // SIZE
         info.sizeDp?.let { (w, h) ->
             SectionLabel("SIZE", SizeColor)
             Spacer(modifier = Modifier.height(4.dp))
@@ -333,53 +365,31 @@ private fun InspectorTooltip(
             )
         }
 
-        // === 2. PADDING (토큰 매칭되는 것만, 레벨별 그룹) ===
-        val tokenPaddings = info.paddings.filter {
-            it.matchingTokens.any { t -> t.startsWith("padding") }
+        // PADDING (SELF only)
+        val selfPaddings = info.paddings.filter {
+            it.level == "SELF" && it.matchingTokens.any { t -> t.startsWith("padding") }
         }
-        if (tokenPaddings.isNotEmpty()) {
-            val byLevel = tokenPaddings.groupBy { it.level }
-            byLevel.forEach { (level, paddings) ->
-                if (info.sizeDp != null || byLevel.keys.first() != level) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-                SectionLabel("$level PADDING", PaddingTokenColor)
-                Spacer(modifier = Modifier.height(4.dp))
-                paddings.forEach { padding ->
-                    val shortTokens = padding.matchingTokens
-                        .filter { it.startsWith("padding") }
-                        .map { it.removePrefix("padding") }
-                    if (shortTokens.isNotEmpty()) {
-                        Text(
-                            text = "${padding.direction}: ${shortTokens.joinToString(", ")} (${padding.dpValue.roundToInt()}dp)",
-                            color = PaddingValueColor,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(vertical = 1.dp),
-                        )
-                    }
-                }
-            }
-        }
-
-        // === 3. SPACING (padding 바로 아래) ===
-        if (info.spacings.isNotEmpty()) {
+        if (selfPaddings.isNotEmpty()) {
             Spacer(modifier = Modifier.height(10.dp))
-            SectionLabel("SPACING", SpacingColor)
+            SectionLabel("PADDING", PaddingTokenColor)
             Spacer(modifier = Modifier.height(4.dp))
-            info.spacings.forEach { spacing ->
-                val shortTokens = spacing.matchingTokens.map { it.removePrefix("spacing") }
-                Text(
-                    text = "${spacing.direction}: ${shortTokens.joinToString(", ")} (${spacing.dpValue.roundToInt()}dp)",
-                    color = SpacingColor.copy(alpha = 0.8f),
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(vertical = 1.dp),
-                )
+            selfPaddings.forEach { padding ->
+                val shortTokens = padding.matchingTokens
+                    .filter { it.startsWith("padding") }
+                    .map { it.removePrefix("padding") }
+                if (shortTokens.isNotEmpty()) {
+                    Text(
+                        text = "${padding.direction}: ${shortTokens.joinToString(", ")} (${padding.dpValue.roundToInt()}dp)",
+                        color = PaddingValueColor,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(vertical = 1.dp),
+                    )
+                }
             }
         }
 
-        // === 4. TYPOGRAPHY — 간략화: tokenName(sp) 형식 ===
+        // TYPOGRAPHY
         info.typography?.let { typo ->
             Spacer(modifier = Modifier.height(10.dp))
             SectionLabel("TYPOGRAPHY", TypoColor)
@@ -406,7 +416,7 @@ private fun InspectorTooltip(
             }
         }
 
-        // === 5. COLOR (pixel sampling) + TEXT COLOR (reflection) ===
+        // COLOR
         if (info.renderedArgb != 0) {
             Spacer(modifier = Modifier.height(10.dp))
             val allTokens = (info.renderedTokens + info.modifierBgTokens).distinct()
@@ -427,19 +437,98 @@ private fun InspectorTooltip(
             ColorRow(label = "COLOR", argb = info.modifierBgArgb, tokens = displayTokens)
         }
 
-        // TEXT COLOR — text 접두사 토큰 우선
+        // TEXT COLOR
         info.textColorArgb?.let { textArgb ->
             Spacer(modifier = Modifier.height(8.dp))
             val textTokens = info.textColorTokens.filter { it.startsWith("text", ignoreCase = true) }
             val displayTokens = textTokens.ifEmpty { info.textColorTokens }.take(5)
-            ColorRow(
-                label = "TEXT COLOR",
-                argb = textArgb,
-                tokens = displayTokens,
+            ColorRow(label = "TEXT COLOR", argb = textArgb, tokens = displayTokens)
+        }
+
+        // OPACITY
+        info.alpha?.let { alpha ->
+            Spacer(modifier = Modifier.height(10.dp))
+            SectionLabel("OPACITY", OpacityColor)
+            Spacer(modifier = Modifier.height(4.dp))
+            val percent = (alpha * 100).roundToInt()
+            Text(
+                text = "$alpha ($percent%)",
+                color = OpacityColor,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
             )
         }
 
-        // === 6. CORNER RADIUS ===
+        // BORDER
+        info.border?.let { border ->
+            Spacer(modifier = Modifier.height(10.dp))
+            SectionLabel("BORDER", BorderColor)
+            Spacer(modifier = Modifier.height(4.dp))
+            val colorHex = border.colorArgb?.let { TokenResolver.formatHex(it) } ?: ""
+            Text(
+                text = "${border.widthDp.roundToInt()}dp $colorHex",
+                color = BorderColor,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+            if (border.colorTokens.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                border.colorTokens.take(3).forEach { token ->
+                    Text(text = token, color = TokenColor, fontSize = 12.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(vertical = 1.dp))
+                }
+            }
+        }
+
+        // SHADOW
+        info.shadow?.let { shadow ->
+            Spacer(modifier = Modifier.height(10.dp))
+            SectionLabel("SHADOW", ShadowColor)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${shadow.elevationDp.roundToInt()}dp",
+                color = ShadowColor,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+
+        // TINT
+        info.tint?.let { tint ->
+            Spacer(modifier = Modifier.height(10.dp))
+            SectionLabel("TINT", TintColor)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(3.dp))
+                        .background(Color(tint.colorArgb))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = TokenResolver.formatHex(tint.colorArgb),
+                    color = TintColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+            if (tint.colorTokens.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                tint.colorTokens.take(3).forEach { token ->
+                    Text(
+                        text = token,
+                        color = TokenColor,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(vertical = 1.dp),
+                    )
+                }
+            }
+        }
+
+        // CORNER RADIUS
         info.cornerRadius?.let { corner ->
             Spacer(modifier = Modifier.height(10.dp))
             SectionLabel("CORNER RADIUS", CornerColor)
@@ -456,6 +545,64 @@ private fun InspectorTooltip(
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
             )
+        }
+
+        // ACCESSIBILITY
+        info.semantics?.contentDescription?.let { desc ->
+            Spacer(modifier = Modifier.height(10.dp))
+            SectionLabel("ACCESSIBILITY", A11yColor)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "\"$desc\"",
+                color = A11yColor,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+
+        // ── 추가 정보 (PARENT PADDING + SPACING) ──
+        val parentPaddings = info.paddings.filter {
+            it.level == "PARENT" && it.matchingTokens.any { t -> t.startsWith("padding") }
+        }
+        if (parentPaddings.isNotEmpty() || info.spacings.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.15f)))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (parentPaddings.isNotEmpty()) {
+                SectionLabel("PARENT PADDING", PaddingTokenColor.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.height(4.dp))
+                parentPaddings.forEach { padding ->
+                    val shortTokens = padding.matchingTokens
+                        .filter { it.startsWith("padding") }
+                        .map { it.removePrefix("padding") }
+                    if (shortTokens.isNotEmpty()) {
+                        Text(
+                            text = "${padding.direction}: ${shortTokens.joinToString(", ")} (${padding.dpValue.roundToInt()}dp)",
+                            color = PaddingValueColor.copy(alpha = 0.7f),
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(vertical = 1.dp),
+                        )
+                    }
+                }
+            }
+
+            if (info.spacings.isNotEmpty()) {
+                if (parentPaddings.isNotEmpty()) Spacer(modifier = Modifier.height(8.dp))
+                SectionLabel("SPACING", SpacingColor.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.height(4.dp))
+                info.spacings.forEach { spacing ->
+                    val shortTokens = spacing.matchingTokens.map { it.removePrefix("spacing") }
+                    Text(
+                        text = "${spacing.direction}: ${shortTokens.joinToString(", ")} (${spacing.dpValue.roundToInt()}dp)",
+                        color = SpacingColor.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(vertical = 1.dp),
+                    )
+                }
+            }
         }
     }
 }

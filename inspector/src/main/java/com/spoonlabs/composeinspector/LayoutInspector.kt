@@ -124,9 +124,9 @@ internal object LayoutInspector {
         density: Float,
         dimensionMap: Map<Float, List<String>>,
         typoMap: Map<String, List<String>>,
+        colorMap: Map<Int, List<String>> = emptyMap(),
     ): InspectionResult {
-        val rootNode = getRootLayoutNode(composeView)
-            ?: return InspectionResult(emptyList(), null, null, null, emptyList(), null, null, null)
+        val rootNode = getRootLayoutNode(composeView) ?: return InspectionResult()
 
         val allNodes = mutableListOf<Pair<Any, Rect>>()
         collectNodesAt(rootNode, position, allNodes)
@@ -139,43 +139,53 @@ internal object LayoutInspector {
             Pair(wDp, hDp)
         }
 
+        // 노드별 modifier 리스트를 한 번만 조회하여 캐시
+        val nodeModifiers = allNodes.map { (node, _) -> node to getModifierList(node) }
+
         val paddings = mutableListOf<AutoDetectedPadding>()
-        for ((index, pair) in allNodes.withIndex()) {
-            val (node, _) = pair
+        for ((index, entry) in nodeModifiers.withIndex()) {
+            val (_, modifiers) = entry
             val level = when (index) {
                 0 -> "SELF"
                 1 -> "PARENT"
-                else -> "ANCESTOR $index"
+                else -> "ANCESTOR"
             }
-            extractPaddingFromModifiers(node, density, dimensionMap, paddings, level)
+            extractPaddingFromModifiers(modifiers, density, dimensionMap, paddings, level)
         }
         if (paddings.isEmpty() && allNodes.size >= 2) {
             val (_, childBounds) = allNodes[0]
             val (_, parentBounds) = allNodes[1]
-            extractPadding(parentBounds, childBounds, density, dimensionMap, paddings, "LAYOUT")
+            extractPadding(parentBounds, childBounds, density, dimensionMap, paddings, "PARENT")
         }
 
         var typography: TypographyResult? = null
-        for ((node, _) in allNodes) {
-            typography = extractTypoFromModifiers(node, typoMap)
+        for ((node, modifiers) in nodeModifiers) {
+            typography = extractTypoFromModifiers(node, modifiers, typoMap)
             if (typography != null) break
         }
 
         var textColorArgb: Int? = null
-        for ((node, _) in allNodes) {
-            textColorArgb = extractTextColorFromModifiers(node)
+        for ((node, modifiers) in nodeModifiers) {
+            textColorArgb = extractTextColorFromModifiers(node, modifiers)
             if (textColorArgb != null) break
         }
 
         var modifierBgArgb: Int? = null
-        for ((node, _) in allNodes) {
-            modifierBgArgb = extractBgColorFromNode(node)
+        for ((_, modifiers) in nodeModifiers) {
+            modifierBgArgb = extractBgColorFromModifiers(modifiers)
             if (modifierBgArgb != null) break
         }
 
-        val cornerRadius = allNodes.firstOrNull()?.first?.let {
-            extractCornerRadius(it, density, dimensionMap)
-        }
+        val innerModifiers = nodeModifiers.firstOrNull()?.second ?: emptyList()
+        val innerNode = allNodes.firstOrNull()?.first
+
+        val cornerRadius = extractCornerRadius(innerModifiers, density, dimensionMap)
+        val semantics = extractSemanticsInfo(innerModifiers)
+        val alpha = extractAlpha(innerModifiers)
+        val border = extractBorder(innerModifiers, colorMap)
+        val shadow = extractShadow(innerModifiers)
+        val tint = extractTint(innerModifiers, colorMap)
+        val componentType = innerNode?.let { inferComponentType(it, innerModifiers, semantics) }
 
         val spacings = if (allNodes.size >= 2) {
             detectSpacingFromNodes(rootNode, allNodes, density, dimensionMap)
@@ -192,7 +202,28 @@ internal object LayoutInspector {
             cornerRadius = cornerRadius,
             textColorArgb = textColorArgb,
             modifierBgArgb = modifierBgArgb,
+            semantics = semantics,
+            alpha = alpha,
+            border = border,
+            shadow = shadow,
+            tint = tint,
+            componentType = componentType,
         )
+    }
+
+    /** modifier 리스트를 노드에서 한 번만 추출 */
+    private fun getModifierList(node: Any): List<ModifierEntry> {
+        val modInfoList = try {
+            modifierInfoMethod?.invoke(node) as? List<*>
+        } catch (_: Exception) {
+            null
+        } ?: return emptyList()
+
+        return modInfoList.mapNotNull { modInfo ->
+            if (modInfo == null) return@mapNotNull null
+            val modifier = getModifierGetter(modInfo::class.java)?.invoke(modInfo) ?: return@mapNotNull null
+            ModifierEntry(modifier, modifier::class.java.name, modifier::class.java.declaredFields)
+        }
     }
 
     private fun detectSpacingFromNodes(
@@ -354,27 +385,20 @@ internal object LayoutInspector {
     }
 
     private fun extractPaddingFromModifiers(
-        node: Any,
+        modifiers: List<ModifierEntry>,
         density: Float,
         dimensionMap: Map<Float, List<String>>,
         result: MutableList<AutoDetectedPadding>,
         level: String,
     ) {
         try {
-            val modInfoList = modifierInfoMethod?.invoke(node) as? List<*> ?: return
-
-            for (modInfo in modInfoList) {
-                if (modInfo == null) continue
-                val modifier = getModifierGetter(modInfo::class.java)?.invoke(modInfo) ?: continue
-                val modClassName = modifier::class.java.name
-
+            for (entry in modifiers) {
                 val hasPaddingFields = lazy {
-                    val fields = modifier::class.java.declaredFields
-                    fields.any { f ->
+                    entry.fields.any { f ->
                         val n = f.name; n.contains("start") || n.contains("top") || n.contains("end") || n.contains("bottom")
-                    } && fields.any { f -> f.type == Float::class.javaPrimitiveType }
+                    } && entry.fields.any { f -> f.type == Float::class.javaPrimitiveType }
                 }
-                if (!modClassName.contains("Padding", ignoreCase = true) && !hasPaddingFields.value) continue
+                if (!entry.className.contains("Padding", ignoreCase = true) && !hasPaddingFields.value) continue
 
                 var startDp = 0f
                 var topDp = 0f
@@ -382,11 +406,11 @@ internal object LayoutInspector {
                 var bottomDp = 0f
                 var found = false
 
-                for (field in modifier::class.java.declaredFields) {
+                for (field in entry.fields) {
                     field.isAccessible = true
                     val name = field.name.lowercase()
                     if (field.type == Float::class.javaPrimitiveType) {
-                        val value = field.getFloat(modifier)
+                        val value = field.getFloat(entry.modifier)
                         when {
                             name.contains("start") || name == "left" -> { startDp = value; found = true }
                             name.contains("top") -> { topDp = value; found = true }
@@ -397,10 +421,10 @@ internal object LayoutInspector {
                 }
 
                 if (!found) {
-                    for (field in modifier::class.java.declaredFields) {
+                    for (field in entry.fields) {
                         field.isAccessible = true
                         if (field.type == Float::class.javaPrimitiveType) {
-                            val value = field.getFloat(modifier)
+                            val value = field.getFloat(entry.modifier)
                             if (value > 0f) {
                                 val fname = field.name.lowercase()
                                 if (!fname.contains("start") && !fname.contains("top") &&
@@ -477,26 +501,19 @@ internal object LayoutInspector {
         return null
     }
 
-    private fun extractTypoFromModifiers(node: Any, typoMap: Map<String, List<String>>): TypographyResult? {
+    private fun extractTypoFromModifiers(node: Any, modifiers: List<ModifierEntry>, typoMap: Map<String, List<String>>): TypographyResult? {
         try {
-            val modInfoList = modifierInfoMethod?.invoke(node) as? List<*> ?: emptyList<Any>()
-            if (modInfoList.isNotEmpty()) {
-                for (modInfo in modInfoList) {
-                    if (modInfo == null) continue
-                    val modifier = getModifierGetter(modInfo::class.java)?.invoke(modInfo) ?: continue
-                    for (field in modifier::class.java.declaredFields) {
-                        field.isAccessible = true
-                        val value = field.get(modifier) ?: continue
-                        if (value::class.java.name.contains("TextStyle")) {
-                            val result = extractFromTextStyle(value, typoMap)
-                            if (result != null) return result
-                        }
+            for (entry in modifiers) {
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    val value = field.get(entry.modifier) ?: continue
+                    if (value::class.java.name.contains("TextStyle")) {
+                        val result = extractFromTextStyle(value, typoMap)
+                        if (result != null) return result
                     }
                 }
             }
-        } catch (_: ReflectiveOperationException) {
-            // Reflection may fail on different Compose versions
-        }
+        } catch (_: ReflectiveOperationException) { }
         return extractTypoFromNodeFields(node, typoMap)
     }
 
@@ -580,45 +597,38 @@ internal object LayoutInspector {
         }
     }
 
-    private fun extractTextColorFromModifiers(node: Any): Int? {
+    private fun extractTextColorFromModifiers(node: Any, modifiers: List<ModifierEntry>): Int? {
         try {
-            val modInfoList = modifierInfoMethod?.invoke(node) as? List<*> ?: emptyList<Any>()
-            if (modInfoList.isNotEmpty()) {
-                for (modInfo in modInfoList) {
-                    if (modInfo == null) continue
-                    val modifier = getModifierGetter(modInfo::class.java)?.invoke(modInfo) ?: continue
-                    for (field in modifier::class.java.declaredFields) {
-                        field.isAccessible = true
-                        val value = field.get(modifier) ?: continue
-                        if (value::class.java.name.contains("TextStyle")) {
-                            val color = extractColorFromTextStyle(value)
-                            if (color != null) return color
-                        }
+            for (entry in modifiers) {
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    val value = field.get(entry.modifier) ?: continue
+                    if (value::class.java.name.contains("TextStyle")) {
+                        val color = extractColorFromTextStyle(value)
+                        if (color != null) return color
                     }
-                    for (field in modifier::class.java.declaredFields) {
-                        field.isAccessible = true
-                        val value = field.get(modifier) ?: continue
-                        val valClass = value::class.java.name
-                        if (valClass.contains("ColorProducer") || field.name == "color") {
-                            try {
-                                val invokeMethod = value::class.java.methods.firstOrNull {
-                                    it.name == "invoke" && it.parameterCount == 0
+                }
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    val value = field.get(entry.modifier) ?: continue
+                    val valClass = value::class.java.name
+                    if (valClass.contains("ColorProducer") || field.name == "color") {
+                        try {
+                            val invokeMethod = value::class.java.methods.firstOrNull {
+                                it.name == "invoke" && it.parameterCount == 0
+                            }
+                            if (invokeMethod != null) {
+                                val result = invokeMethod.invoke(value)
+                                if (result is Long) {
+                                    val c = Color(result.toULong())
+                                    if (c != Color.Unspecified) return c.toArgb()
                                 }
-                                if (invokeMethod != null) {
-                                    val result = invokeMethod.invoke(value)
-                                    if (result is Long) {
-                                        val c = Color(result.toULong())
-                                        if (c != Color.Unspecified) return c.toArgb()
-                                    }
-                                }
-                            } catch (_: Exception) {}
-                        }
+                            }
+                        } catch (_: Exception) {}
                     }
                 }
             }
-        } catch (_: ReflectiveOperationException) {
-            // Reflection may fail on different Compose versions
-        }
+        } catch (_: ReflectiveOperationException) { }
         return extractTextColorFromNodeFields(node)
     }
 
@@ -675,35 +685,25 @@ internal object LayoutInspector {
         }
     }
 
-    private fun extractBgColorFromNode(node: Any): Int? {
+    private fun extractBgColorFromModifiers(modifiers: List<ModifierEntry>): Int? {
         return try {
-            val modInfoList = modifierInfoMethod?.invoke(node) as? List<*> ?: return null
-            for (modInfo in modInfoList) {
-                if (modInfo == null) continue
-                val modifier = getModifierGetter(modInfo::class.java)?.invoke(modInfo) ?: continue
-                val modClassName = modifier::class.java.name
-                if (modClassName.contains("Background")) {
-                    for (field in modifier::class.java.declaredFields) {
-                        field.isAccessible = true
-                        val value = field.get(modifier) ?: continue
-                        val valueClassName = value::class.java.name
-                        if (valueClassName.contains("SolidColor")) {
-                            val valueField = value::class.java.declaredFields.firstOrNull()
-                            if (valueField != null) {
-                                valueField.isAccessible = true
-                                val colorVal = valueField.get(value)
-                                if (colorVal is Long) {
-                                    val color = Color(colorVal.toULong())
-                                    return color.toArgb()
-                                }
-                            }
-                        }
-                        if (field.type == Long::class.javaPrimitiveType && field.name.contains("color", ignoreCase = true)) {
-                            val colorLong = field.getLong(modifier)
-                            val color = Color(colorLong.toULong())
-                            if (color != Color.Unspecified) {
-                                return color.toArgb()
-                            }
+            for (entry in modifiers) {
+                if (!entry.className.contains("Background")) continue
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    if (field.type == Long::class.javaPrimitiveType && field.name.contains("color", ignoreCase = true)) {
+                        val colorLong = field.getLong(entry.modifier)
+                        val color = Color(colorLong.toULong())
+                        if (color != Color.Unspecified) return color.toArgb()
+                        continue
+                    }
+                    val value = field.get(entry.modifier) ?: continue
+                    if (value::class.java.name.contains("SolidColor")) {
+                        val valueField = value::class.java.declaredFields.firstOrNull()
+                        if (valueField != null) {
+                            valueField.isAccessible = true
+                            val colorVal = valueField.get(value)
+                            if (colorVal is Long) return Color(colorVal.toULong()).toArgb()
                         }
                     }
                 }
@@ -715,16 +715,13 @@ internal object LayoutInspector {
     }
 
     private fun extractCornerRadius(
-        node: Any,
+        modifiers: List<ModifierEntry>,
         density: Float,
         dimensionMap: Map<Float, List<String>>,
     ): CornerRadiusResult? {
         return try {
-            val modInfoList = modifierInfoMethod?.invoke(node) as? List<*> ?: return null
-            for (modInfo in modInfoList) {
-                if (modInfo == null) continue
-                val modifier = getModifierGetter(modInfo::class.java)?.invoke(modInfo) ?: continue
-                val result = tryExtractCornerFromModifier(modifier, density, dimensionMap)
+            for (entry in modifiers) {
+                val result = tryExtractCornerFromModifier(entry.modifier, density, dimensionMap)
                 if (result != null) return result
             }
             null
@@ -792,6 +789,287 @@ internal object LayoutInspector {
             null
         }
     }
+    // --- New extractors ---
+
+    private val knownComponentTypes = setOf(
+        "Column", "Row", "Box", "LazyColumn", "LazyRow", "LazyGrid",
+        "FlowRow", "FlowColumn", "Surface", "Scaffold", "Card",
+        "BottomSheet", "Dialog", "Drawer", "Navigation",
+    )
+
+    private fun inferComponentType(node: Any, modifiers: List<ModifierEntry>, semantics: SemanticsInfo?): String? {
+        return try {
+            // 1) measurePolicy 기반: Column, Row, Box 등 레이아웃 컴포넌트
+            for (field in node::class.java.declaredFields) {
+                if (field.name.contains("measurePolicy", ignoreCase = true)) {
+                    field.isAccessible = true
+                    val policy = field.get(node) ?: continue
+                    val className = policy::class.java.simpleName
+                    val name = className
+                        .removeSuffix("MeasurePolicy")
+                        .removeSuffix("\$1")
+                        .removeSuffix("Impl")
+                        .takeIf { it.isNotEmpty() && it != className }
+                        ?: continue
+                    if (knownComponentTypes.any { name.contains(it, ignoreCase = true) }) {
+                        return name
+                    }
+                }
+            }
+            // 2) modifier 클래스명 기반: Text, Image, TextField 등 leaf 컴포넌트
+            inferComponentTypeFromModifiers(modifiers, semantics)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun inferComponentTypeFromModifiers(modifiers: List<ModifierEntry>, semantics: SemanticsInfo?): String? {
+        var hasTextModifier = false
+        var hasTextFieldModifier = false
+        var hasPainterModifier = false
+
+        for (entry in modifiers) {
+            when {
+                entry.className.contains("TextStringSimpleElement") ||
+                entry.className.contains("TextAnnotatedStringElement") -> hasTextModifier = true
+
+                entry.className.contains("TextFieldCore") ||
+                entry.className.contains("TextInputElement") -> hasTextFieldModifier = true
+
+                entry.className.contains("PainterElement") ||
+                entry.className.contains("PainterModifier") -> hasPainterModifier = true
+            }
+        }
+
+        return when {
+            hasTextFieldModifier -> "TextField"
+            hasTextModifier -> "Text"
+            hasPainterModifier && semantics?.imageRole == true -> "Image"
+            hasPainterModifier -> "Icon"
+            else -> null
+        }
+    }
+
+    private fun extractSemanticsInfo(modifiers: List<ModifierEntry>): SemanticsInfo? {
+        return try {
+            var testTag: String? = null
+            var contentDesc: String? = null
+            var imageRole = false
+
+            for (entry in modifiers) {
+                if (!entry.className.contains("Semantics", ignoreCase = true)) continue
+
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    val value = field.get(entry.modifier) ?: continue
+                    val valClassName = value::class.java.name
+
+                    if (valClassName.contains("SemanticsConfiguration")) {
+                        try {
+                            val iter = value::class.java.methods
+                                .firstOrNull { it.name == "iterator" }
+                                ?.invoke(value) as? Iterator<*>
+                            if (iter != null) {
+                                while (iter.hasNext()) {
+                                    val semEntry = iter.next() ?: continue
+                                    val keyMethod = semEntry::class.java.methods.firstOrNull { it.name == "getKey" }
+                                    val valMethod = semEntry::class.java.methods.firstOrNull { it.name == "getValue" }
+                                    val keyName = keyMethod?.invoke(semEntry)?.toString() ?: ""
+                                    val entryVal = valMethod?.invoke(semEntry)
+                                    when {
+                                        keyName.contains("TestTag") && entryVal is String -> testTag = entryVal
+                                        keyName.contains("ContentDescription") -> {
+                                            contentDesc = when (entryVal) {
+                                                is List<*> -> entryVal.firstOrNull()?.toString()
+                                                is String -> entryVal
+                                                else -> entryVal?.toString()
+                                            }
+                                        }
+                                        keyName.contains("Role") -> {
+                                            if (entryVal?.toString()?.contains("Image", ignoreCase = true) == true) {
+                                                imageRole = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+
+                    // Direct field approach as fallback
+                    if (field.name.contains("testTag", ignoreCase = true) && value is String) {
+                        testTag = value
+                    }
+                }
+            }
+
+            if (testTag != null || contentDesc != null || imageRole) {
+                SemanticsInfo(testTag = testTag, contentDescription = contentDesc, imageRole = imageRole)
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractAlpha(modifiers: List<ModifierEntry>): Float? {
+        return try {
+            for (entry in modifiers) {
+                if (!entry.className.contains("GraphicsLayer", ignoreCase = true) &&
+                    !entry.className.contains("Alpha", ignoreCase = true)
+                ) continue
+
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    if (field.type == Float::class.javaPrimitiveType &&
+                        field.name.contains("alpha", ignoreCase = true)
+                    ) {
+                        val alpha = field.getFloat(entry.modifier)
+                        if (alpha < 1.0f && alpha >= 0f) return alpha
+                    }
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractBorder(modifiers: List<ModifierEntry>, colorMap: Map<Int, List<String>>): BorderResult? {
+        return try {
+            for (entry in modifiers) {
+                if (!entry.className.contains("Border", ignoreCase = true)) continue
+
+                var widthDp = 0f
+                var colorArgb: Int? = null
+
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    val name = field.name.lowercase()
+
+                    if (field.type == Float::class.javaPrimitiveType && name.contains("width")) {
+                        widthDp = field.getFloat(entry.modifier)
+                    } else if (field.type == Long::class.javaPrimitiveType && name.contains("color")) {
+                        val colorLong = field.getLong(entry.modifier)
+                        val c = Color(colorLong.toULong())
+                        if (c != Color.Unspecified) colorArgb = c.toArgb()
+                    } else {
+                        val value = field.get(entry.modifier) ?: continue
+                        if (value::class.java.name.contains("SolidColor")) {
+                            val colorField = value::class.java.declaredFields.firstOrNull()
+                            if (colorField != null) {
+                                colorField.isAccessible = true
+                                val colorVal = colorField.get(value)
+                                if (colorVal is Long) colorArgb = Color(colorVal.toULong()).toArgb()
+                            }
+                        }
+                    }
+                }
+
+                if (widthDp > 0f) {
+                    val roundedWidth = widthDp.roundToInt().toFloat()
+                    val tokens = colorArgb?.let {
+                        TokenResolver.resolveColor(colorMap, it).tokens
+                    } ?: emptyList()
+                    return BorderResult(
+                        widthDp = roundedWidth,
+                        colorArgb = colorArgb,
+                        colorTokens = tokens,
+                    )
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractShadow(modifiers: List<ModifierEntry>): ShadowResult? {
+        return try {
+            for (entry in modifiers) {
+                if (!entry.className.contains("Shadow", ignoreCase = true) &&
+                    !entry.className.contains("GraphicsLayer", ignoreCase = true)
+                ) continue
+
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    val name = field.name.lowercase()
+                    if (field.type == Float::class.javaPrimitiveType &&
+                        (name.contains("elevation") || name.contains("shadow"))
+                    ) {
+                        val elevation = field.getFloat(entry.modifier)
+                        if (elevation > 0f) {
+                            return ShadowResult(elevationDp = elevation.roundToInt().toFloat())
+                        }
+                    }
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractTint(modifiers: List<ModifierEntry>, colorMap: Map<Int, List<String>>): TintResult? {
+        return try {
+            for (entry in modifiers) {
+                // PainterElement/PainterModifier 에서 ColorFilter 추출
+                if (!entry.className.contains("Painter", ignoreCase = true) &&
+                    !entry.className.contains("ColorFilter", ignoreCase = true) &&
+                    !entry.className.contains("Tint", ignoreCase = true)
+                ) continue
+
+                for (field in entry.fields) {
+                    field.isAccessible = true
+                    val value = field.get(entry.modifier) ?: continue
+                    val valClassName = value::class.java.name
+
+                    if (valClassName.contains("ColorFilter") || field.name.contains("colorFilter", ignoreCase = true)) {
+                        val tintColor = extractColorFromColorFilter(value)
+                        if (tintColor != null) {
+                            val tokens = TokenResolver.resolveColor(colorMap, tintColor).tokens
+                            return TintResult(colorArgb = tintColor, colorTokens = tokens)
+                        }
+                    }
+
+                    // tint 필드가 Color 타입인 경우 (Long-backed)
+                    if (field.name.contains("tint", ignoreCase = true) && field.type == Long::class.javaPrimitiveType) {
+                        val colorLong = field.getLong(entry.modifier)
+                        val c = Color(colorLong.toULong())
+                        if (c != Color.Unspecified) {
+                            val argb = c.toArgb()
+                            val tokens = TokenResolver.resolveColor(colorMap, argb).tokens
+                            return TintResult(colorArgb = argb, colorTokens = tokens)
+                        }
+                    }
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractColorFromColorFilter(colorFilter: Any, depth: Int = 0): Int? {
+        if (depth > 3) return null
+        return try {
+            for (field in colorFilter::class.java.declaredFields) {
+                field.isAccessible = true
+                if (field.type == Long::class.javaPrimitiveType && field.name.contains("color", ignoreCase = true)) {
+                    val colorLong = field.getLong(colorFilter)
+                    val c = Color(colorLong.toULong())
+                    if (c != Color.Unspecified) return c.toArgb()
+                }
+                val value = field.get(colorFilter) ?: continue
+                if (value !== colorFilter && value::class.java.name.contains("ColorFilter")) {
+                    val nested = extractColorFromColorFilter(value, depth + 1)
+                    if (nested != null) return nested
+                }
+            }
+            null
+        } catch (_: Throwable) {
+            null
+        }
+    }
 }
 
 internal data class AutoDetectedPadding(
@@ -819,13 +1097,46 @@ internal data class CornerRadiusResult(
     val matchingTokens: List<String>,
 )
 
+internal data class SemanticsInfo(
+    val testTag: String?,
+    val contentDescription: String?,
+    val imageRole: Boolean = false,
+)
+
+internal data class BorderResult(
+    val widthDp: Float,
+    val colorArgb: Int?,
+    val colorTokens: List<String>,
+)
+
+internal data class ShadowResult(
+    val elevationDp: Float,
+)
+
+internal data class TintResult(
+    val colorArgb: Int,
+    val colorTokens: List<String>,
+)
+
+internal class ModifierEntry(
+    val modifier: Any,
+    val className: String,
+    val fields: Array<java.lang.reflect.Field>,
+)
+
 internal data class InspectionResult(
-    val paddings: List<AutoDetectedPadding>,
-    val highlightBounds: Rect?,
-    val sizeDp: Pair<Int, Int>?,
-    val typography: TypographyResult?,
-    val spacings: List<SpacingResult>,
-    val cornerRadius: CornerRadiusResult?,
-    val textColorArgb: Int?,
-    val modifierBgArgb: Int?,
+    val paddings: List<AutoDetectedPadding> = emptyList(),
+    val highlightBounds: Rect? = null,
+    val sizeDp: Pair<Int, Int>? = null,
+    val typography: TypographyResult? = null,
+    val spacings: List<SpacingResult> = emptyList(),
+    val cornerRadius: CornerRadiusResult? = null,
+    val textColorArgb: Int? = null,
+    val modifierBgArgb: Int? = null,
+    val semantics: SemanticsInfo? = null,
+    val alpha: Float? = null,
+    val border: BorderResult? = null,
+    val shadow: ShadowResult? = null,
+    val tint: TintResult? = null,
+    val componentType: String? = null,
 )
