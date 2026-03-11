@@ -2,7 +2,9 @@ package com.spoonlabs.composeinspector.demo.theme
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.spoonlabs.composeinspector.InspectableTokens
 
+@InspectableTokens
 object DemoDimensions {
     val spacingXS: Dp = 4.dp
     val spacingS: Dp = 8.dp

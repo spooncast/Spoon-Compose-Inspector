@@ -3,7 +3,8 @@
     <string name="app_name">ComposeInspector 演示</string>
 
     <!-- Tabs -->
-    <string name="tab_with_tokens">有Token</string>
+    <string name="tab_custom_tokens">自定义Token</string>
+    <string name="tab_material3">Material3</string>
     <string name="tab_without_tokens">无Token</string>
     <string name="tab_component_test">组件</string>
 

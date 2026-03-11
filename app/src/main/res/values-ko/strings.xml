@@ -3,7 +3,8 @@
     <string name="app_name">ComposeInspector 데모</string>
 
     <!-- Tabs -->
-    <string name="tab_with_tokens">토큰 있음</string>
+    <string name="tab_custom_tokens">커스텀 토큰</string>
+    <string name="tab_material3">Material3</string>
     <string name="tab_without_tokens">토큰 없음</string>
     <string name="tab_component_test">컴포넌트</string>
 

@@ -29,3 +29,7 @@
 
 # Keep Modifier implementations (accessed via getModifierInfo reflection)
 -keep class * implements androidx.compose.ui.Modifier$Element { *; }
+
+# @InspectableTokens — keep annotation and annotated classes for token name reflection
+-keep @interface com.spoonlabs.composeinspector.InspectableTokens
+-keep @com.spoonlabs.composeinspector.InspectableTokens class * { *; }

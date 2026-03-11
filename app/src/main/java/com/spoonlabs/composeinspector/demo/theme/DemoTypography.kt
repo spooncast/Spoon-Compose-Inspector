@@ -3,7 +3,9 @@ package com.spoonlabs.composeinspector.demo.theme
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.spoonlabs.composeinspector.InspectableTokens
 
+@InspectableTokens
 object DemoTypography {
     val titleLarge = TextStyle(
         fontSize = 24.sp,

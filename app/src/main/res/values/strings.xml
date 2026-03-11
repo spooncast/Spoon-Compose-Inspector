@@ -3,8 +3,9 @@
     <string name="app_name">ComposeInspector Demo</string>
 
     <!-- Tabs -->
-    <string name="tab_with_tokens">With Tokens</string>
-    <string name="tab_without_tokens">Without Tokens</string>
+    <string name="tab_custom_tokens">Custom Tokens</string>
+    <string name="tab_material3">Material3</string>
+    <string name="tab_without_tokens">No Tokens</string>
     <string name="tab_component_test">Components</string>
 
     <!-- Token Demo Screen -->

@@ -82,6 +82,12 @@ object ComposeInspector {
     /**
      * Build a color token map from an arbitrary object using reflection.
      * Extracts all Color (Long-backed) fields and maps ARGB values to field names.
+     *
+     * Note: This method uses reflection to extract field names from the target object.
+     * In minified (R8/ProGuard) builds, annotate the target class with [@InspectableTokens]
+     * to prevent field name obfuscation.
+     * Alternatively, add an R8/ProGuard keep rule such as
+     * `-keep class your.TokenClass { *; }` in your app or library configuration.
      */
     fun buildColorMap(target: Any): Map<Int, List<String>> =
         TokenResolver.buildColorMapFromObject(target)
@@ -89,6 +95,8 @@ object ComposeInspector {
     /**
      * Build a dimension token map from an arbitrary object using reflection.
      * Extracts all Float (Dp-backed) fields and maps dp values to field names.
+     *
+     * @see buildColorMap for R8/ProGuard considerations.
      */
     fun buildDimensionMap(target: Any): Map<Float, List<String>> =
         TokenResolver.buildDimensionMapFromObject(target)
@@ -96,6 +104,8 @@ object ComposeInspector {
     /**
      * Build a typography token map from an arbitrary object using reflection.
      * Extracts all TextStyle fields and maps (fontSize|fontWeight|lineHeight) keys to field names.
+     *
+     * @see buildColorMap for R8/ProGuard considerations.
      */
     fun buildTypoMap(target: Any): Map<String, List<String>> =
         TokenResolver.buildTypoMapFromObject(target)
@@ -103,6 +113,9 @@ object ComposeInspector {
     /**
      * Register all design tokens and attach the inspector overlay in one call.
      * For a single color theme object.
+     *
+     * Uses reflection internally via [buildColorMap], [buildDimensionMap], [buildTypoMap].
+     * @see buildColorMap for R8/ProGuard considerations.
      */
     fun setDesignTokens(
         context: Context,
@@ -116,6 +129,9 @@ object ComposeInspector {
     /**
      * Register all design tokens and attach the inspector overlay in one call.
      * Accepts multiple color objects (e.g. light + dark) which are automatically merged.
+     *
+     * Uses reflection internally via [buildColorMap], [buildDimensionMap], [buildTypoMap].
+     * @see buildColorMap for R8/ProGuard considerations.
      */
     fun setDesignTokens(
         context: Context,

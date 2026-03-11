@@ -1,7 +1,9 @@
 package com.spoonlabs.composeinspector.demo.theme
 
 import androidx.compose.ui.graphics.Color
+import com.spoonlabs.composeinspector.InspectableTokens
 
+@InspectableTokens
 object DemoColors {
     val primary = Color(0xFF6366F1)
     val primaryVariant = Color(0xFF4F46E5)
