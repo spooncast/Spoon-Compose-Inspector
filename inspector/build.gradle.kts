@@ -56,7 +56,7 @@ afterEvaluate {
                 from(components["release"])
                 groupId = "com.github.spooncast"
                 artifactId = "Spoon-Compose-Inspector"
-                version = "1.3.0"
+                version = "1.3.1"
             }
         }
     }

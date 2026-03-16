@@ -125,7 +125,7 @@ internal fun InspectorOverlay(
 
                             renderedArgb = bitmap.getPixel(0, 0)
                             renderedResult = TokenResolver.resolveColor(colorMap, renderedArgb)
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             Log.d("InspectorOverlay", "Pixel sampling failed", e)
                         } finally {
                             // 반드시 visibility 복원 (예외 발생해도)

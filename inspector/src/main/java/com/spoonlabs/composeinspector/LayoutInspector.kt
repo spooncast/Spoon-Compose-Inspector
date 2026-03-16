@@ -193,7 +193,12 @@ internal object LayoutInspector {
         val innerNode = allNodes.firstOrNull()?.first
 
         val cornerRadius = extractCornerRadius(innerModifiers, density, dimensionMap)
-        val semantics = extractSemanticsInfo(innerModifiers)
+        // Semantics: innermost 노드부터 부모 방향으로 탐색 (testTag가 부모에 붙는 경우 대응)
+        var semantics: SemanticsInfo? = null
+        for ((_, modifiers) in nodeModifiers) {
+            semantics = extractSemanticsInfo(modifiers)
+            if (semantics != null) break
+        }
         val alpha = extractAlpha(innerModifiers)
         val border = extractBorder(innerModifiers, colorMap)
         val shadow = extractShadow(innerModifiers)
@@ -1010,12 +1015,22 @@ internal object LayoutInspector {
             var imageRole = false
 
             for (entry in modifiers) {
-                if (!entry.className.contains("Semantics", ignoreCase = true)) continue
+                val isSemanticsRelated = entry.className.contains("Semantics", ignoreCase = true) ||
+                    entry.className.contains("TestTag", ignoreCase = true)
+                if (!isSemanticsRelated) continue
 
                 for (field in entry.fields) {
                     field.isAccessible = true
                     val value = field.get(entry.modifier) ?: continue
                     val valClassName = value::class.java.name
+
+                    // TestTagElement의 "tag" 필드 직접 접근
+                    if (entry.className.contains("TestTag", ignoreCase = true) &&
+                        field.name == "tag" && value is String
+                    ) {
+                        testTag = value
+                        continue
+                    }
 
                     if (valClassName.contains("SemanticsConfiguration")) {
                         try {

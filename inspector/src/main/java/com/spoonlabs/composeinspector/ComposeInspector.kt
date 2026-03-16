@@ -217,6 +217,8 @@ object ComposeInspector {
     fun attachToWindow(activity: Activity) {
         if (!isEnabled) return
         if (attachedActivities.containsKey(activity)) return
+        if (activity !is LifecycleOwner) return
+        if (activity.isFinishing) return
 
         val contentView = activity.findViewById<FrameLayout>(android.R.id.content)
         if (contentView == null) {
@@ -230,13 +232,18 @@ object ComposeInspector {
             )
         }
 
-        contentView.addView(
-            overlayView,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-            ),
-        )
+        try {
+            contentView.addView(
+                overlayView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        } catch (e: Exception) {
+            Log.w("ComposeInspector", "Failed to attach overlay to ${activity::class.java.simpleName}", e)
+            return
+        }
         overlayView.elevation = 100f
 
         overlayView.setContent {
@@ -245,14 +252,12 @@ object ComposeInspector {
 
         attachedActivities[activity] = overlayView
 
-        if (activity is LifecycleOwner) {
-            activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
-                override fun onDestroy(owner: LifecycleOwner) {
-                    detachFromWindow(activity)
-                    owner.lifecycle.removeObserver(this)
-                }
-            })
-        }
+        activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                detachFromWindow(activity)
+                owner.lifecycle.removeObserver(this)
+            }
+        })
     }
 
     private fun detachAll() {
