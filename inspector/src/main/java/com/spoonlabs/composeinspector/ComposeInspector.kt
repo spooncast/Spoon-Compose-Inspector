@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.findViewTreeLifecycleOwner
 import java.util.WeakHashMap
 import java.util.concurrent.atomic.AtomicReference
 
@@ -223,6 +224,14 @@ object ComposeInspector {
         val contentView = activity.findViewById<FrameLayout>(android.R.id.content)
         if (contentView == null) {
             Log.w("ComposeInspector", "Content view not found for ${activity::class.java.simpleName}")
+            return
+        }
+
+        // ComposeView requires ViewTreeLifecycleOwner on the view tree.
+        // Some external activities (e.g. Google SignInHubActivity) extend FragmentActivity
+        // (LifecycleOwner) but may not have ViewTreeLifecycleOwner set on their view tree.
+        if (contentView.findViewTreeLifecycleOwner() == null) {
+            Log.w("ComposeInspector", "ViewTreeLifecycleOwner not found for ${activity::class.java.simpleName}, skipping")
             return
         }
 
