@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -81,6 +82,7 @@ fun BasicDemoScreen(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag("basic_demo_card")
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFFFFFFFF))
                 .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))

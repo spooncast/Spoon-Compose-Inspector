@@ -361,19 +361,39 @@ private fun InspectorTooltip(
             .padding(14.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // === TITLE: componentType + testTag ===
-        val titleParts = listOfNotNull(
-            info.componentType,
-            info.semantics?.testTag?.let { "\"$it\"" },
-        )
-        if (titleParts.isNotEmpty()) {
+        // === TITLE: componentType ===
+        info.componentType?.let { type ->
             Text(
-                text = titleParts.joinToString(" "),
+                text = type,
                 color = IdentifierColor,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
             )
+        }
+
+        // resourceId (testTag) — 타이틀 바로 아래 별도 줄
+        info.semantics?.testTag?.let { tag ->
+            if (info.componentType != null) {
+                Spacer(modifier = Modifier.height(3.dp))
+            }
+            Row {
+                Text(
+                    text = "resourceId : ",
+                    color = LabelColor,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Text(
+                    text = tag,
+                    color = IdentifierColor,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+
+        if (info.componentType != null || info.semantics?.testTag != null) {
             Spacer(modifier = Modifier.height(8.dp))
         }
 
