@@ -1,17 +1,58 @@
 # Spoon Compose Inspector
 
-A lightweight Compose UI inspector for Android. Tap any element to view its layout properties, design tokens (color, dimension, typography), and component hierarchy — all without leaving the app.
+[![JitPack](https://jitpack.io/v/spooncast/Spoon-Compose-Inspector.svg)](https://jitpack.io/#spooncast/Spoon-Compose-Inspector)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![API](https://img.shields.io/badge/API-28%2B-brightgreen.svg)](https://developer.android.com/about/versions)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0%2B-7F52FF.svg)](https://kotlinlang.org)
+
+> **A lightweight, on-device Jetpack Compose UI inspector for Android.** Tap any composable to view its layout, size, padding, colors, typography, and design-system token names — live, on a real device, without leaving the app or attaching a debugger.
+
+Spoon Compose Inspector is a debug-only overlay that maps the visual properties of your Compose UI back to your **design tokens** (color, dimension, typography). It's built for designers, QA, and engineers who need to verify that what's on screen matches the design system — fast.
+
+**Keywords:** Jetpack Compose inspector · Android Compose layout inspector · design token debugger · Compose UI overlay · on-device inspector · Compose design system QA · token resolver.
+
+## Table of Contents
+
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Inspector Tooltip](#inspector-tooltip)
+- [One-line Component Launcher](#one-line-component-launcher)
+- [InspectablePreview](#inspectablepreview)
+- [Advanced: InspectorActivity](#advanced-inspectoractivity)
+- [R8 / ProGuard (Minified Builds)](#r8--proguard-minified-builds)
+- [API Reference](#api-reference)
+- [Requirements](#requirements)
+- [License](#license)
 
 ## Features
 
 - **Layout Inspector** — Tap any composable to see its bounds, padding, size, and position
 - **Design Token Mapping** — Automatically resolves colors, dimensions, and typography to your design system token names
 - **Component Type Detection** — Identifies Column, Row, Box, Text, Image, Icon, TextField and more
+- **Layout Arrangement & Alignment** — Detects non-default `Arrangement` and `Alignment` on Row/Column/Box
 - **Visual Property Extraction** — Background color, text color, gradient/brush, tint, opacity, border, shadow, corner radius
 - **Semantics** — Shows testTag, contentDescription, and accessibility roles
 - **One-line Launcher** — Open any component in a standalone inspector screen with a single line of code
 - **Preview Integration** — Use `InspectablePreview` to add inspector support directly in `@Preview` functions
+- **R8 / ProGuard Ready** — `@InspectableTokens` keeps token names intact even in minified builds
 - **Non-intrusive** — Only activates in debug builds; zero overhead in release
+
+## Screenshots
+
+<!-- TODO: add screenshots — see note at the bottom of this section -->
+
+| Inspect mode | Token tooltip | Standalone launcher |
+|:---:|:---:|:---:|
+| _floating button + tap-to-inspect_ | _size / padding / color / token names_ | _`launch { }` screen_ |
+
+> 📸 **Images needed.** This table currently has placeholders. To make the README compelling (and to rank in GitHub/search results, where the first image is used as the social preview), please add:
+> 1. **Inspect mode** — the floating button and a highlighted composable.
+> 2. **Token tooltip** — a tapped element showing the property/token panel.
+> 3. **Standalone launcher** — a component opened via `ComposeInspector.launch`.
+>
+> Drop them in a `docs/` or `art/` folder and update the links above (e.g. `![Inspect mode](docs/inspect-mode.png)`). A short GIF of tap-to-inspect at the top of the README works especially well.
 
 ## Installation
 
@@ -29,9 +70,11 @@ Add the dependency (debug only):
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.spooncast:Spoon-Compose-Inspector:1.1.0")
+    debugImplementation("com.github.spooncast:Spoon-Compose-Inspector:1.3.3")
 }
 ```
+
+> Using `debugImplementation` keeps the inspector out of your release APK entirely.
 
 ## Quick Start
 
@@ -86,8 +129,10 @@ When you tap an element, the tooltip displays:
 
 | Section | Description |
 |---------|-------------|
-| **Title** | Component type (Column, Text, Icon...) + testTag |
+| **Title** | Component type (Column, Text, Icon...) |
+| **resourceId** | `Modifier.testTag` value, shown as `resourceId : <tag>` right below the title |
 | **Size** | Width x Height in dp |
+| **Layout** | Non-default arrangement & alignment (Row/Column/Box) |
 | **Padding** | Self padding with token names |
 | **Typography** | Font size, weight, line height + token name |
 | **Color** | Background color with swatch + token names |
@@ -142,6 +187,28 @@ class MyTestActivity : InspectorActivity() {
 }
 ```
 
+## R8 / ProGuard (Minified Builds)
+
+Token names are resolved from your token classes **via reflection**. In minified builds, R8 renames fields (`primary` → `a`), which breaks token resolution. The library ships consumer ProGuard rules that keep the inspector itself and the Compose internals it inspects — but it cannot know about *your* token classes.
+
+Annotate your design-token classes with `@InspectableTokens` so the bundled rules keep their field names:
+
+```kotlin
+@InspectableTokens
+object MyColors {
+    val primary = Color(0xFF6200EE)
+    val secondary = Color(0xFF03DAC6)
+}
+```
+
+**Library authors:** if your design system lives in a separate module that does *not* depend on this inspector, add keep rules directly to that module's `consumer-rules.pro` instead:
+
+```pro
+-keep class your.package.YourTokenClass { *; }
+```
+
+> Most apps build the inspector with `debugImplementation` against a non-minified debug build, in which case no extra rules are needed.
+
 ## API Reference
 
 | Method | Description |
@@ -159,6 +226,7 @@ class MyTestActivity : InspectorActivity() {
 | `ComposeInspector.buildTypoMap(obj)` | Build typography map from an object via reflection |
 | `ComposeInspector.setColorPriorityPrefixes(list)` | Set prefix priority for color token display |
 | `InspectablePreview(label, buttonText) { }` | Preview card with inspector launch button |
+| `@InspectableTokens` | Annotation that keeps token classes from R8/ProGuard obfuscation |
 
 ## Requirements
 
