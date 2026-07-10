@@ -12,3 +12,6 @@ local.properties
 # Module build outputs
 app/build/
 inspector/build/
+
+# Claude Code local files
+/.claude/
